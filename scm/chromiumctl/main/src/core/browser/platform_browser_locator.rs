@@ -38,6 +38,10 @@ impl BrowserLocator for PlatformBrowserLocator {
             if Path::new(&path).exists() {
                 return Ok(path);
             }
+            return Err(format!(
+                "CHROME_PATH is set to '{}' but that path does not exist",
+                path,
+            ));
         }
 
         for candidate in &candidates {
