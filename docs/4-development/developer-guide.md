@@ -11,7 +11,6 @@
 ## Build
 
 ```sh
-cd scm
 cargo build
 ```
 
@@ -20,8 +19,6 @@ No code generation, no proc-macros beyond `serde`. Cold build takes ~10 seconds.
 ## Tests
 
 ```sh
-cd scm
-
 # Unit and offline tests (fast, no browser required)
 cargo test --lib
 
@@ -66,8 +63,9 @@ fn get_navigation_history(&self) -> Result<serde_json::Value, String> {
 ## Project structure walkthrough
 
 ```
+Cargo.toml                      Workspace root
+Cargo.lock
 scm/
-├── Cargo.toml                  Workspace root
 └── chromiumctl/
     ├── Cargo.toml              Package manifest (lib path = main/src/lib.rs)
     ├── examples/
