@@ -2,17 +2,54 @@
 
 ## Overview
 
-chromiumctl is a synchronous CDP client. Every operation — launching a browser, evaluating JavaScript, reading CSS — maps to one or more CDP messages sent over a persistent WebSocket connection. There is no async runtime; callers block on each command.
+chromiumctl is a synchronous CDP client library. Every operation — launching a browser, evaluating JavaScript, reading CSS — maps to one or more CDP messages sent over a persistent WebSocket connection. There is no async runtime; callers block on each command.
+
+### I/O
 
 ```
-Your code
-    │
-    ▼
-CdpClient  ──── WebSocket (tungstenite) ──── Chrome DevTools Protocol
-    │                                               │
-    │                                        Chrome / Edge / Brave
-    └── PageEvaluator (trait)
-         evaluate / get_computed_style / get_bounding_rect / ...
+┌──────────────────────────────────────────────────────┐
+│  Rust caller                                         │
+│                                                      │
+│  IN:  URL or debug port                              │
+│       JavaScript expression strings                  │
+│       CSS selector + property name                   │
+│       Viewport width (u32)                           │
+│       Raw CDP method + serde_json::Value params      │
+│                                                      │
+│  OUT: String  (JS result, CSS value)                 │
+│       Rect    (x, y, width, height)                  │
+│       (u32, u32)  (viewport width × height)          │
+│       serde_json::Value  (raw CDP result)            │
+│       String  (error message)                        │
+└───────────────────────┬──────────────────────────────┘
+                        │
+                        ▼
+┌──────────────────────────────────────────────────────┐
+│  chromiumctl                                         │
+│                                                      │
+│  CdpClient::launch(url)                              │
+│    1. PlatformBrowserLocator::find()  → binary path  │
+│    2. Command::new(binary).spawn()   → Child process │
+│    3. poll /json HTTP (curl, 200 ms) → ws_url        │
+│    4. tungstenite::connect(ws_url)   → WebSocket     │
+│                                                      │
+│  .evaluate / .get_computed_style /                   │
+│  .get_bounding_rect / .set_viewport_width / .send    │
+│    serialize → JSON CDP frame → socket.send()        │
+│    socket.read() loop → match id → return result     │
+└──────────┬───────────────────────────────────────────┘
+           │  WebSocket (port 9300+)
+           ▼
+┌──────────────────────────────────────────────────────┐
+│  Chromium-based browser (headless)                   │
+│  Chrome / Edge / Brave                               │
+│                                                      │
+│  Chrome DevTools Protocol                            │
+│  Runtime.evaluate                                    │
+│  Emulation.setDeviceMetricsOverride                  │
+│  Page.navigate                                       │
+│  DOM.*  /  CSS.*                                     │
+└──────────────────────────────────────────────────────┘
 ```
 
 ## Layers
@@ -20,7 +57,7 @@ CdpClient  ──── WebSocket (tungstenite) ──── Chrome DevTools Pro
 The crate follows SEA (Service → Engine → Adapter) layering:
 
 ```
-src/
+main/src/
 ├── lib.rs                  Public surface (re-exports from api/)
 ├── client.rs               CdpClient impl blocks + send_cdp_raw
 │
