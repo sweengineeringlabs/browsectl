@@ -4,6 +4,15 @@
 
 chromiumctl is a synchronous CDP client library. Every operation — launching a browser, evaluating JavaScript, reading CSS — maps to one or more CDP messages sent over a persistent WebSocket connection. There is no async runtime; callers block on each command.
 
+## Use cases
+
+- **Read back computed CSS from a live render** — colours, fonts, sizes, spacing, after the full CSS cascade and JavaScript have been applied. Static analysis cannot do this; only a running browser can.
+- **Drive a page programmatically** — navigate, click, fill inputs, submit forms — from a Rust process without a human at a keyboard.
+- **Visual regression in CI** — load a component, measure it, assert it matches expected dimensions or styles, fail the build if it does not.
+- **Test responsive behaviour** — set the viewport to a mobile width, re-measure, verify the layout changed as expected.
+- **Execute JavaScript in a real browser context** — run arbitrary JS and capture the result in Rust.
+- **Headless screenshot / PDF pipeline** — trigger browser-native capture via raw CDP commands.
+
 ### I/O
 
 ```
