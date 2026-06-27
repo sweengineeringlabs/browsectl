@@ -18,6 +18,10 @@ service_type = "client"
 name = "chromiumctl"
 path = "main/src/lib.rs"
 
+[[bin]]
+name = "chromiumctl-cli"
+path = "../../src/bin/chromiumctl-cli/main.rs"
+
 [[example]]
 name = "launch"
 path = "examples/launch.rs"
