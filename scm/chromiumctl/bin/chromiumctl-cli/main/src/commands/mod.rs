@@ -58,3 +58,36 @@ pub fn parse_value<T: std::str::FromStr>(args: &[String], i: usize, flag: &str) 
         .parse()
         .map_err(|_| CliError::InvalidArgs(format!("invalid value for {}", flag)))
 }
+
+/// Attach to a running session via `--port` (default 9222) or, with the
+/// `android` feature, `--package` for a debuggable Android WebView.
+/// `port` and `package` are mutually exclusive; validated by the caller.
+pub fn attach(port: Option<u16>, package: Option<&str>) -> Result<chromiumctl::CdpClient, CliError> {
+    if let Some(pkg) = package {
+        return attach_android(pkg);
+    }
+    chromiumctl::CdpClient::attach(port.unwrap_or(9222)).map_err(CliError::ConnectionFailed)
+}
+
+#[cfg(feature = "android")]
+fn attach_android(package: &str) -> Result<chromiumctl::CdpClient, CliError> {
+    chromiumctl::CdpClient::attach_android(package).map_err(CliError::ConnectionFailed)
+}
+
+#[cfg(not(feature = "android"))]
+fn attach_android(_package: &str) -> Result<chromiumctl::CdpClient, CliError> {
+    Err(CliError::InvalidArgs(
+        "--package requires building chromiumctl-cli with `--features android`".to_string(),
+    ))
+}
+
+/// Reject `--port`/`--package` given together; returns the effective port
+/// (only meaningful when `package` is `None`).
+pub fn validate_connect_args(port: Option<u16>, package: &Option<String>) -> Result<(), CliError> {
+    if port.is_some() && package.is_some() {
+        return Err(CliError::InvalidArgs(
+            "--port and --package cannot be used together".to_string(),
+        ));
+    }
+    Ok(())
+}

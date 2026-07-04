@@ -59,6 +59,9 @@ fn print_help() {
     eprintln!("OPTIONS:\n");
     eprintln!("    --url <URL>           Target URL (launch, navigate)");
     eprintln!("    --port <PORT>         Debug port (default: 9222)");
+    eprintln!("    --package <PKG>       Attach to a debuggable Android WebView via adb, instead");
+    eprintln!("                          of --port (eval, navigate, wait, click, input, screenshot,");
+    eprintln!("                          get-dom, metrics; requires the `android` build feature)");
     eprintln!("    --script <JS>         JavaScript to evaluate (eval)");
     eprintln!("    --selector <SEL>      CSS selector (wait, click, input)");
     eprintln!("    --text <TEXT>         Text to match (wait) or type (input)");
@@ -73,5 +76,6 @@ fn print_help() {
     eprintln!("EXAMPLES:\n");
     eprintln!("    chromiumctl launch --url https://example.com --port 9222\n");
     eprintln!("    chromiumctl eval --port 9222 --script \"document.title\"\n");
+    eprintln!("    chromiumctl eval --package com.example.app --script \"document.title\"\n");
     eprintln!("    chromiumctl screenshot --port 9222 --output page.png\n");
 }

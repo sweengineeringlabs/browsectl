@@ -1,9 +1,8 @@
-use chromiumctl::CdpClient;
-
-use super::{expect_value, parse_value, CliError};
+use super::{attach, expect_value, parse_value, validate_connect_args, CliError};
 
 pub fn execute(args: &[String]) -> Result<(), CliError> {
-    let mut port: u16 = 9222;
+    let mut port: Option<u16> = None;
+    let mut package: Option<String> = None;
     let mut output: Option<String> = None;
 
     let mut i = 0;
@@ -11,7 +10,11 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         match args[i].as_str() {
             "--port" => {
                 i += 1;
-                port = parse_value(args, i, "--port")?;
+                port = Some(parse_value(args, i, "--port")?);
+            }
+            "--package" => {
+                i += 1;
+                package = Some(expect_value(args, i, "--package")?);
             }
             "--output" => {
                 i += 1;
@@ -21,8 +24,9 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         }
         i += 1;
     }
+    validate_connect_args(port, &package)?;
 
-    let client = CdpClient::attach(port).map_err(CliError::ConnectionFailed)?;
+    let client = attach(port, package.as_deref())?;
 
     let dom = client
         .send("DOM.getDocument", serde_json::json!({ "depth": -1, "pierce": true }))

@@ -125,6 +125,17 @@ chromiumctl-cli metrics    --port 9222 --output metrics.json
 
 `eval --output` selects the stdout format (`text`, `json`, `yaml` — default `text`). For `screenshot`/`get-dom`/`metrics`, `--output <FILE>` is a destination path; omit it on `get-dom`/`metrics` to print JSON to stdout instead.
 
+### Attaching to Android instead of `--port` (feature `android`)
+
+Every command above accepts `--package <PKG>` as an alternative to `--port` — attaches to a debuggable Android WebView via `adb` instead of a desktop debug port (see [`CdpClient::attach_android`](#android-webview-feature-android) for prerequisites). `--port` and `--package` are mutually exclusive.
+
+```sh
+cd scm && cargo build --release --bin chromiumctl-cli --features android
+chromiumctl-cli eval --package com.example.app --script "document.title"
+```
+
+Built without the `android` feature, `--package` is still recognized but returns a clear error telling you to rebuild with it, rather than an opaque "unknown option".
+
 ### Exit codes
 
 | Code | Meaning |

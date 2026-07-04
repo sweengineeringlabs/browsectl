@@ -96,6 +96,36 @@ fn test_eval_returns_exit_2_when_script_missing() {
     assert_eq!(output.status.code(), Some(2), "missing --script must exit 2 (invalid args)");
 }
 
+/// @covers: eval
+#[test]
+fn test_eval_returns_exit_2_when_port_and_package_both_given() {
+    let output = cli()
+        .args(["eval", "--port", "9222", "--package", "com.example.app", "--script", "1"])
+        .output()
+        .expect("failed to run chromiumctl-cli eval");
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "--port and --package together must exit 2 (invalid args)"
+    );
+}
+
+/// @covers: eval
+#[test]
+#[cfg(not(feature = "android"))]
+fn test_eval_package_gives_actionable_error_without_android_feature() {
+    let output = cli()
+        .args(["eval", "--package", "com.example.app", "--script", "1"])
+        .output()
+        .expect("failed to run chromiumctl-cli eval");
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("--features android"),
+        "error must tell the caller how to fix it, got: {stderr}"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // navigate
 // ---------------------------------------------------------------------------
