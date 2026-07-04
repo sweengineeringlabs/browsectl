@@ -32,6 +32,11 @@ path = "../../src/bin/chromiumctl-cli/main.rs"
 name = "launch"
 path = "examples/launch.rs"
 
+[[bin]]
+name = "fake-adb-for-tests"
+path = "test-support/fake_adb.rs"
+required-features = ["android"]
+
 [dependencies]
 serde.workspace      = true
 serde_json.workspace = true

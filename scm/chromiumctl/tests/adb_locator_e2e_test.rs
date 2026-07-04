@@ -10,7 +10,7 @@
 #![cfg(feature = "android")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use chromiumctl::CdpClient;
+use chromiumctl::{CdpClient, CdpClientBuilder, PageEvaluator};
 
 /// @covers: attach_android
 #[test]
@@ -50,4 +50,70 @@ fn test_attach_android_fails_when_package_not_debuggable() {
         result.is_err(),
         "attach_android must fail cleanly for a package with no active WebView debug socket"
     );
+}
+
+/// @covers: attach_android
+///
+/// No real Android device is available in this environment, so this
+/// simulates `adb` with a small stand-in binary (`fake-adb-for-tests`,
+/// `test-support/fake_adb.rs`) that answers the socket-enumeration and
+/// `ps -A` queries with canned output, while the "forwarded" port actually
+/// points at a real, already-running headless browser. This exercises every
+/// line of `attach_android`'s real orchestration — locating `adb`, parsing
+/// `/proc/net/unix`, matching the package via `ps -A`, parsing the forwarded
+/// port, attaching, and evaluating JS — against a real CDP session, and
+/// verifies `Drop` actually invokes `adb forward --remove`. The one thing it
+/// does not exercise is the real `adb` binary's own behavior for these exact
+/// commands — that still needs a real device (see the tests above).
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_attach_android_succeeds_against_simulated_adb_and_real_browser() {
+    let browser = CdpClientBuilder::new("data:text/html,<h1 id=x>fake-adb-e2e</h1>")
+        .launch()
+        .expect("setup: real browser launch must succeed");
+
+    let fake_adb = env!("CARGO_BIN_EXE_fake-adb-for-tests");
+    let remove_log = std::env::temp_dir().join(format!("fake_adb_remove_{}.log", std::process::id()));
+
+    // Safety: this test binary runs this specific test in isolation with
+    // respect to these env vars (no other test in this file touches them).
+    unsafe {
+        std::env::set_var("ADB_PATH", fake_adb);
+        std::env::set_var("FAKE_ADB_PACKAGE", "com.example.fake");
+        std::env::set_var("FAKE_ADB_FORWARD_PORT", browser.port().to_string());
+        std::env::set_var("FAKE_ADB_REMOVE_LOG", &remove_log);
+    }
+
+    let result = CdpClient::attach_android("com.example.fake");
+
+    // ADB_PATH/FAKE_ADB_PACKAGE/FAKE_ADB_FORWARD_PORT are only needed for the
+    // attach_android call above, but FAKE_ADB_REMOVE_LOG must stay set until
+    // after `android_client` is dropped below — that's when the child
+    // process reading it is actually spawned.
+    unsafe {
+        std::env::remove_var("ADB_PATH");
+        std::env::remove_var("FAKE_ADB_PACKAGE");
+        std::env::remove_var("FAKE_ADB_FORWARD_PORT");
+    }
+
+    let android_client =
+        result.expect("attach_android must succeed against the simulated adb + real browser");
+    assert_eq!(
+        android_client
+            .evaluate("document.getElementById('x').textContent")
+            .unwrap(),
+        "fake-adb-e2e",
+        "attach_android must connect to the real browser behind the simulated forward"
+    );
+
+    drop(android_client);
+
+    unsafe {
+        std::env::remove_var("FAKE_ADB_REMOVE_LOG");
+    }
+    assert!(
+        remove_log.exists(),
+        "Drop must invoke `adb forward --remove` for a forward this client owns"
+    );
+    let _ = std::fs::remove_file(&remove_log);
 }
