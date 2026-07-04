@@ -58,12 +58,29 @@ let client = CdpClientBuilder::new("https://example.com")
     .launch()?;
 ```
 
+### Android WebView (feature `android`)
+
+```toml
+[dependencies]
+chromiumctl = { version = "0.1", features = ["android"] }
+```
+
+```rust
+// Requires `adb` (ADB_PATH env var, or Android SDK platform-tools on a
+// well-known path or PATH) and a device/emulator with
+// WebView.setWebContentsDebuggingEnabled(true) active for the given package.
+let client = CdpClient::attach_android("com.example.app")?;
+```
+
+Enumerates active `webview_devtools_remote_*` debug sockets over `adb shell`, matches one against the package name, forwards a local port to it, and attaches like `CdpClient::attach`. The port forward is torn down automatically on drop.
+
 ## API surface
 
 | Item | What it does |
 |------|-------------|
 | `CdpClient::launch(url)` | Launch headless browser, navigate to `url`, connect |
 | `CdpClient::attach(port)` | Attach to an existing debugger on `port` |
+| `CdpClient::attach_android(package)` | Attach to a debuggable Android WebView via `adb` (feature `android`) |
 | `client.navigate(url)` | Navigate and wait for page load (10 s timeout) |
 | `client.send(method, params)` | Raw CDP command, returns `result` JSON |
 | `client.port()` | The remote-debugging port |

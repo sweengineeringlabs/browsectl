@@ -76,6 +76,8 @@ impl CdpClient {
             chrome_process: Some(chrome_process),
             port,
             ws_url,
+            #[cfg(feature = "android")]
+            adb_forward: None,
         };
         client.wait_for_load();
         Ok(client)
@@ -91,7 +93,41 @@ impl CdpClient {
             chrome_process: None,
             port,
             ws_url,
+            #[cfg(feature = "android")]
+            adb_forward: None,
         })
+    }
+
+    /// Attach to a debuggable Android WebView owned by `package_name` on the
+    /// single connected/authorized `adb` device.
+    ///
+    /// Enumerates active `webview_devtools_remote_*` sockets via `adb shell`,
+    /// picks the first one owned by `package_name` (exact match, or
+    /// `package_name:sub_process` for a named sub-process), forwards a local
+    /// port to it, and attaches over that port exactly like [`CdpClient::attach`].
+    /// The forward is torn down automatically when the returned client is dropped.
+    ///
+    /// Requires `adb` (`ADB_PATH` env var, or Android SDK `platform-tools` on
+    /// a well-known path or `PATH`) and a device with
+    /// `WebView.setWebContentsDebuggingEnabled(true)` active for the target app.
+    #[cfg(feature = "android")]
+    pub fn attach_android(package_name: &str) -> Result<Self, String> {
+        use crate::core::android::AdbLocator;
+
+        let adb = AdbLocator::find()?;
+        let socket = AdbLocator::find_webview_socket(&adb, package_name)?;
+        let port = AdbLocator::forward(&adb, &socket)?;
+
+        match Self::attach(port) {
+            Ok(mut client) => {
+                client.adb_forward = Some((adb, port));
+                Ok(client)
+            }
+            Err(e) => {
+                AdbLocator::remove_forward(&adb, port);
+                Err(e)
+            }
+        }
     }
 
     /// Navigate to `url` and wait for the page to finish loading (up to 10 s).
@@ -157,6 +193,10 @@ impl Drop for CdpClient {
         if let Some(ref mut proc) = self.chrome_process {
             let _ = proc.kill();
             let _ = proc.wait();
+        }
+        #[cfg(feature = "android")]
+        if let Some((ref adb, port)) = self.adb_forward {
+            crate::core::android::AdbLocator::remove_forward(adb, port);
         }
     }
 }

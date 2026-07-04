@@ -25,4 +25,8 @@ pub struct CdpClient {
     pub(crate) chrome_process: Option<Child>,
     pub(crate) port:           u16,
     pub(crate) ws_url:         String,
+    /// `Some((adb_path, local_port))` when this client owns an `adb forward`
+    /// created by `attach_android` — torn down on `Drop`.
+    #[cfg(feature = "android")]
+    pub(crate) adb_forward: Option<(String, u16)>,
 }

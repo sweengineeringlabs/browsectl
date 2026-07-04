@@ -18,6 +18,12 @@ service_type = "client"
 name = "chromiumctl"
 path = "main/src/lib.rs"
 
+[features]
+# Enables CdpClient::attach_android, which shells out to `adb` to attach to a
+# debuggable Android WebView. Off by default — the crate's core scope is
+# desktop Chromium (Chrome/Edge/Brave/Arc/Vivaldi).
+android = []
+
 [[bin]]
 name = "chromiumctl-cli"
 path = "../../src/bin/chromiumctl-cli/main.rs"
