@@ -24,6 +24,7 @@ fn main() {
         "input" => commands::input::execute(cmd_args),
         "get-dom" => commands::get_dom::execute(cmd_args),
         "metrics" => commands::metrics::execute(cmd_args),
+        "stop" => commands::stop::execute(cmd_args),
         "help" | "-h" | "--help" => {
             print_help();
             Ok(())
@@ -55,6 +56,7 @@ fn print_help() {
     eprintln!("    input        Type text into input field");
     eprintln!("    get-dom      Export current DOM as JSON");
     eprintln!("    metrics      Get performance metrics");
+    eprintln!("    stop         Terminate exactly the browser session at --port/--package");
     eprintln!("    help         Print this message\n");
     eprintln!("OPTIONS:\n");
     eprintln!("    --url <URL>           Target URL (launch, navigate)");
@@ -78,4 +80,5 @@ fn print_help() {
     eprintln!("    chromiumctl eval --port 9222 --script \"document.title\"\n");
     eprintln!("    chromiumctl eval --package com.example.app --script \"document.title\"\n");
     eprintln!("    chromiumctl screenshot --port 9222 --output page.png\n");
+    eprintln!("    chromiumctl stop --port 9222\n");
 }

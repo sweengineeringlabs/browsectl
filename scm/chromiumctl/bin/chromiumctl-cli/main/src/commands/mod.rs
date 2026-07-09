@@ -7,6 +7,7 @@ pub mod click;
 pub mod input;
 pub mod get_dom;
 pub mod metrics;
+pub mod stop;
 
 /// Errors surfaced by CLI subcommands, mapped to RFC-0001's exit codes.
 #[derive(Debug)]

@@ -109,6 +109,14 @@ Spawns headless Chromium, connects, then detaches: the browser keeps running aft
 chromiumctl-cli launch --url https://example.com --port 9222 --width 1920 --height 1080
 ```
 
+### `stop` — safely end a `launch`ed session
+
+`launch` detaches on purpose (see above), so cleanup is a separate step. Kill it by image name (`taskkill /IM chrome.exe`, `pkill chrome`) and you'll take down every other Chrome window on the machine along with it. `stop` instead attaches to exactly the session at `--port`/`--package` and closes it over CDP (`Browser.close`), leaving everything else untouched:
+
+```sh
+chromiumctl-cli stop --port 9222
+```
+
 ### Commands that attach to a running session with `--port`
 
 ```sh

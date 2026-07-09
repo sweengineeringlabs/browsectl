@@ -439,3 +439,74 @@ fn test_launch_returns_exit_2_when_url_missing() {
     let output = cli().args(["launch", "--port", "9222"]).output().unwrap();
     assert_eq!(output.status.code(), Some(2));
 }
+
+// ---------------------------------------------------------------------------
+// stop
+// ---------------------------------------------------------------------------
+
+/// @covers: stop
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_stop_terminates_real_detached_launch_and_leaves_others_running() {
+    let target_port = next_port();
+    let bystander_port = next_port();
+
+    // A `launch`ed session, detached exactly like a real caller would use it.
+    let launch_output = cli()
+        .args([
+            "launch",
+            "--url", "data:text/html,<h1>target</h1>",
+            "--port", &target_port.to_string(),
+        ])
+        .output()
+        .expect("failed to run chromiumctl-cli launch");
+    assert!(launch_output.status.success(), "setup: launch must succeed");
+
+    // A second, independent instance that `stop` must NOT touch.
+    let bystander = CdpClientBuilder::new("data:text/html,<h1>bystander</h1>")
+        .port(bystander_port)
+        .launch()
+        .expect("setup: bystander launch must succeed");
+
+    let stop_output = cli()
+        .args(["stop", "--port", &target_port.to_string()])
+        .output()
+        .expect("failed to run chromiumctl-cli stop");
+    assert!(
+        stop_output.status.success(),
+        "stop must exit 0, stderr: {}",
+        String::from_utf8_lossy(&stop_output.stderr)
+    );
+
+    assert!(
+        CdpClient::attach(target_port).is_err(),
+        "the targeted browser must no longer be reachable after stop"
+    );
+    assert!(
+        bystander.evaluate("1").is_ok(),
+        "an unrelated browser instance must survive stopping a different port"
+    );
+
+    drop(bystander);
+}
+
+/// @covers: stop
+#[test]
+fn test_stop_returns_exit_4_when_no_browser_listening() {
+    let output = cli().args(["stop", "--port", "19997"]).output().unwrap();
+    assert_eq!(output.status.code(), Some(4), "unreachable debugger must exit 4 (connection failed)");
+}
+
+/// @covers: stop
+#[test]
+fn test_stop_returns_exit_2_when_port_and_package_both_given() {
+    let output = cli()
+        .args(["stop", "--port", "9222", "--package", "com.example.app"])
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "--port and --package together must exit 2 (invalid args)"
+    );
+}
