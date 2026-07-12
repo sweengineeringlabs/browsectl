@@ -7,6 +7,8 @@
 
 ### Documentation
 - Note in "Known limitations" that `--package` sessions can show a stale `prefers-color-scheme` relative to the device's live OS setting, since the attached WebView renderer — not chromiumctl — owns that state (#6)
+- Note in "Known limitations" that `screenshot --package` only captures the WebView's own render surface, not native Activity chrome or system dialogs outside it (#5)
+- Note in "Known limitations" that an `eval`-dispatched `.click()` doesn't carry trusted user-gesture activation, so gesture-gated APIs like file choosers silently no-op (#7)
 
 ## [0.2.1] — 2026-07-09
 
