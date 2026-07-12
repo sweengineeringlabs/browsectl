@@ -212,7 +212,7 @@ impl PageEvaluator for CdpClient {
             serde_json::json!({
                 "expression":    js,
                 "returnByValue": true,
-                "awaitPromise":  false,
+                "awaitPromise":  true,
             }),
         )?;
 

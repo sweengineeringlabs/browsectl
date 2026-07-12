@@ -162,6 +162,40 @@ fn test_eval_output_json_wraps_non_json_string_as_string() {
 
 /// @covers: eval
 #[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_eval_prints_resolved_value_of_async_iife() {
+    let port = next_port();
+    let client = CdpClientBuilder::new("data:text/html,<p>test</p>")
+        .port(port)
+        .launch()
+        .expect("setup: launch must succeed");
+
+    let output = cli()
+        .args([
+            "eval",
+            "--port", &port.to_string(),
+            "--script",
+            "(function(){ return new Promise(function(resolve){ setTimeout(function(){ resolve('some-value'); }, 200); }); })()",
+        ])
+        .output()
+        .expect("failed to run chromiumctl-cli eval");
+
+    assert!(
+        output.status.success(),
+        "eval must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim(),
+        "some-value",
+        "eval must print the promise's resolved value, not exit silently"
+    );
+
+    drop(client);
+}
+
+/// @covers: eval
+#[test]
 #[cfg(not(feature = "android"))]
 fn test_eval_package_gives_actionable_error_without_android_feature() {
     let output = cli()

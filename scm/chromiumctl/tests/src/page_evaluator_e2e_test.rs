@@ -48,3 +48,27 @@ fn test_page_evaluator_set_viewport_width_changes_width() {
     c.set_viewport_width(480).unwrap();
     assert_eq!(c.get_viewport_size().unwrap().0, 480);
 }
+
+/// @covers: evaluate
+#[test]
+#[ignore]
+fn test_page_evaluator_evaluate_awaits_delayed_promise() {
+    let c = CdpClient::launch(fixture_url()).unwrap();
+    let result = c
+        .evaluate(
+            "new Promise(function(resolve) { setTimeout(function() { resolve('resolved-value'); }, 200); })",
+        )
+        .unwrap();
+    assert_eq!(result, "resolved-value", "evaluate must await the promise and return its resolved value");
+}
+
+/// @covers: evaluate
+#[test]
+#[ignore]
+fn test_page_evaluator_evaluate_rejected_promise_returns_err() {
+    let c = CdpClient::launch(fixture_url()).unwrap();
+    let err = c
+        .evaluate("Promise.reject(new Error('rejected-value'))")
+        .expect_err("a rejected promise must surface as an error, not a silent empty result");
+    assert!(err.contains("rejected-value"), "error must include the rejection reason, got: {}", err);
+}
