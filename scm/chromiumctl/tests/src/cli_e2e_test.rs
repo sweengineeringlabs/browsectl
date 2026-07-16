@@ -594,3 +594,384 @@ fn test_stop_returns_exit_2_when_port_and_package_both_given() {
         "--port and --package together must exit 2 (invalid args)"
     );
 }
+
+// ---------------------------------------------------------------------------
+// reap
+// ---------------------------------------------------------------------------
+
+fn unique_session_dir(name: &str) -> std::path::PathBuf {
+    std::env::temp_dir().join(format!("chromiumctl_cli_test_sessions_{}_{}", std::process::id(), name))
+}
+
+/// Spawn `chromiumctl-cli launch` via a short-lived wrapper process so the
+/// recorded `caller_pid` (the wrapper, not this test process) is already
+/// dead by the time the wrapper's own `.output()` call returns here —
+/// simulating exactly the RFC-0003 scenario (the process that called
+/// `launch` died before ever calling `stop`).
+fn launch_with_dead_caller(port: u16, dir: &std::path::Path, url: &str) {
+    let cli_path = env!("CARGO_BIN_EXE_chromiumctl-cli");
+    let output = if cfg!(windows) {
+        // Separate argv entries (not one joined string) so cmd.exe never
+        // re-parses `<`/`>`/`|`/`&` out of our own arguments — cmd.exe only
+        // sees a plain, unquoted, space-tokenized tail here.
+        Command::new("cmd")
+            .arg("/C")
+            .arg(cli_path)
+            .args(["launch", "--url", url, "--port", &port.to_string()])
+            .env("CHROMIUMCTL_SESSION_DIR", dir)
+            .output()
+    } else {
+        // `; true` prevents the shell from tail-call-exec'ing directly into
+        // `launch` (which would make the shell *become* `launch`'s own PID
+        // instead of staying a separate parent that then exits).
+        Command::new("sh")
+            .arg("-c")
+            .arg(format!("'{}' launch --url '{}' --port {} ; true", cli_path, url, port))
+            .env("CHROMIUMCTL_SESSION_DIR", dir)
+            .output()
+    }
+    .expect("failed to run wrapped chromiumctl-cli launch");
+    assert!(
+        output.status.success(),
+        "wrapped launch must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+/// @covers: reap
+#[test]
+fn test_reap_dry_run_reports_no_sessions_when_dir_is_empty() {
+    let dir = unique_session_dir("empty");
+    let output = cli()
+        .args(["reap", "--dry-run"])
+        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .output()
+        .expect("failed to run chromiumctl-cli reap");
+    assert!(
+        output.status.success(),
+        "reap must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stdout).contains("No orphaned or stale sessions found."),
+        "stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
+/// @covers: reap
+#[test]
+fn test_reap_returns_exit_2_for_unknown_option() {
+    let output = cli().args(["reap", "--bogus"]).output().unwrap();
+    assert_eq!(output.status.code(), Some(2));
+}
+
+/// @covers: reap
+#[test]
+fn test_reap_returns_exit_2_for_invalid_max_age() {
+    let output = cli().args(["reap", "--max-age", "banana"]).output().unwrap();
+    assert_eq!(output.status.code(), Some(2));
+}
+
+/// @covers: launch
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_launch_writes_a_session_record_reap_can_read() {
+    let port = next_port();
+    let dir = unique_session_dir("launch_writes_record");
+
+    let output = cli()
+        .args(["launch", "--url", "data:text/html,launch-record-test", "--port", &port.to_string()])
+        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .output()
+        .expect("failed to run chromiumctl-cli launch");
+    assert!(output.status.success(), "launch must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
+
+    let record_path = dir.join(format!("{}.json", port));
+    let body = std::fs::read_to_string(&record_path)
+        .unwrap_or_else(|e| panic!("session record must exist at {}: {}", record_path.display(), e));
+    let record: serde_json::Value = serde_json::from_str(&body).expect("session record must be valid JSON");
+    assert_eq!(record["port"], port);
+    assert!(record["caller_pid"].as_u64().unwrap() > 0, "caller_pid must be a plausible PID");
+    assert!(record["launched_at"].as_u64().unwrap() > 0, "launched_at must be a real timestamp");
+
+    let client = CdpClient::attach(port).expect("browser must be reachable");
+    let _ = client.send("Browser.close", serde_json::json!({}));
+}
+
+/// @covers: stop
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_stop_deletes_the_session_record() {
+    let port = next_port();
+    let dir = unique_session_dir("stop_deletes_record");
+
+    let launch_output = cli()
+        .args(["launch", "--url", "data:text/html,stop-record-test", "--port", &port.to_string()])
+        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .output()
+        .expect("failed to run chromiumctl-cli launch");
+    assert!(launch_output.status.success(), "setup: launch must succeed");
+
+    let record_path = dir.join(format!("{}.json", port));
+    assert!(record_path.exists(), "setup: session record must exist after launch");
+
+    let stop_output = cli()
+        .args(["stop", "--port", &port.to_string()])
+        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .output()
+        .expect("failed to run chromiumctl-cli stop");
+    assert!(
+        stop_output.status.success(),
+        "stop must exit 0, stderr: {}",
+        String::from_utf8_lossy(&stop_output.stderr)
+    );
+
+    assert!(!record_path.exists(), "session record must be deleted after stop");
+}
+
+/// @covers: reap
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_reap_leaves_alive_callers_session_untouched() {
+    let port = next_port();
+    let dir = unique_session_dir("reap_leaves_alive_alone");
+
+    // This test process is `launch`'s parent for the whole test, so its
+    // session must never look orphaned to `reap`.
+    let launch_output = cli()
+        .args(["launch", "--url", "data:text/html,alive-caller-test", "--port", &port.to_string()])
+        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .output()
+        .expect("failed to run chromiumctl-cli launch");
+    assert!(launch_output.status.success(), "setup: launch must succeed");
+
+    let reap_output = cli()
+        .args(["reap"])
+        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .output()
+        .expect("failed to run chromiumctl-cli reap");
+    assert!(
+        reap_output.status.success(),
+        "reap must exit 0, stderr: {}",
+        String::from_utf8_lossy(&reap_output.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&reap_output.stdout).contains("No orphaned or stale sessions found."),
+        "reap must not touch a session whose caller (this test process) is still alive, stdout: {}",
+        String::from_utf8_lossy(&reap_output.stdout)
+    );
+
+    let record_path = dir.join(format!("{}.json", port));
+    assert!(record_path.exists(), "session record for a still-alive caller must not be deleted");
+
+    let client = CdpClient::attach(port).expect("browser of a still-alive caller must remain reachable");
+    let _ = client.send("Browser.close", serde_json::json!({}));
+}
+
+/// @covers: reap
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_reap_with_max_age_leaves_alive_caller_untouched_across_repeated_calls() {
+    let port = next_port();
+    let dir = unique_session_dir("reap_max_age_alive_repeated");
+
+    // This test process is `launch`'s parent for the whole test — a
+    // generous --max-age must not cause an otherwise-healthy, freshly
+    // launched session to be reaped just because an age limit was given.
+    let launch_output = cli()
+        .args(["launch", "--url", "data:text/html,max-age-alive-test", "--port", &port.to_string()])
+        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .output()
+        .expect("failed to run chromiumctl-cli launch");
+    assert!(launch_output.status.success(), "setup: launch must succeed");
+
+    let record_path = dir.join(format!("{}.json", port));
+
+    // Call twice: a live, in-max-age session must be a no-op both times,
+    // not just on a first pass.
+    for attempt in 1..=2 {
+        let reap_output = cli()
+            .args(["reap", "--max-age", "1h"])
+            .env("CHROMIUMCTL_SESSION_DIR", &dir)
+            .output()
+            .expect("failed to run chromiumctl-cli reap");
+        assert!(
+            reap_output.status.success(),
+            "reap --max-age 1h must exit 0 on attempt {}, stderr: {}",
+            attempt,
+            String::from_utf8_lossy(&reap_output.stderr)
+        );
+        assert!(
+            String::from_utf8_lossy(&reap_output.stdout).contains("No orphaned or stale sessions found."),
+            "attempt {}: a live caller's fresh session must not be reaped just because --max-age was given, stdout: {}",
+            attempt,
+            String::from_utf8_lossy(&reap_output.stdout)
+        );
+        assert!(record_path.exists(), "attempt {}: session record must survive", attempt);
+    }
+
+    let client = CdpClient::attach(port).expect("browser of a still-alive, in-max-age caller must remain reachable");
+    let _ = client.send("Browser.close", serde_json::json!({}));
+}
+
+/// @covers: reap
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_reap_detects_pid_reuse_via_start_time_mismatch_and_reaps() {
+    let port = next_port();
+    let dir = unique_session_dir("reap_pid_reuse_simulated");
+
+    // Real caller (this test process), so `caller_pid` alone would read as
+    // alive — that's the point: this proves the fingerprint check, not bare
+    // PID liveness, is what actually gates `reap` here. Real OS PID reuse
+    // can't be forced deterministically from a test, so this simulates it
+    // the honest way: corrupt the on-disk fingerprint that was captured at
+    // launch time, as if this PID had since been handed to a different
+    // process than the one `launch` originally recorded.
+    let launch_output = cli()
+        .args(["launch", "--url", "data:text/html,pid-reuse-test", "--port", &port.to_string()])
+        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .output()
+        .expect("failed to run chromiumctl-cli launch");
+    assert!(launch_output.status.success(), "setup: launch must succeed");
+
+    let record_path = dir.join(format!("{}.json", port));
+    let body = std::fs::read_to_string(&record_path).expect("setup: session record must exist");
+    let mut record: serde_json::Value = serde_json::from_str(&body).expect("setup: record must be valid JSON");
+    assert!(
+        record["caller_start_time"].is_string(),
+        "setup: launch must have captured a real fingerprint on this platform for this test to be meaningful, record: {}",
+        record
+    );
+    record["caller_start_time"] = serde_json::json!("simulated-reused-pid-fingerprint-mismatch");
+    std::fs::write(&record_path, serde_json::to_string_pretty(&record).unwrap())
+        .expect("setup: must be able to rewrite the session record");
+
+    let reap_output = cli()
+        .args(["reap"])
+        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .output()
+        .expect("failed to run chromiumctl-cli reap");
+    assert!(
+        reap_output.status.success(),
+        "reap must exit 0, stderr: {}",
+        String::from_utf8_lossy(&reap_output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&reap_output.stdout);
+    assert!(
+        stdout.contains("Reaped"),
+        "reap must treat a fingerprint mismatch as an orphan, even though caller_pid resolves to a genuinely live process, stdout: {}",
+        stdout
+    );
+
+    assert!(!record_path.exists(), "reap must delete the record once a fingerprint mismatch is detected");
+    assert!(
+        CdpClient::attach(port).is_err(),
+        "reap must have actually closed the browser despite caller_pid still being alive"
+    );
+}
+
+/// @covers: reap
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_reap_dry_run_reports_orphaned_session_without_closing_it() {
+    let port = next_port();
+    let dir = unique_session_dir("reap_dry_run_orphan");
+    launch_with_dead_caller(port, &dir, "data:text/html,dry-run-orphan-test");
+
+    let reap_output = cli()
+        .args(["reap", "--dry-run"])
+        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .output()
+        .expect("failed to run chromiumctl-cli reap");
+    assert!(
+        reap_output.status.success(),
+        "reap --dry-run must exit 0, stderr: {}",
+        String::from_utf8_lossy(&reap_output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&reap_output.stdout);
+    assert!(stdout.contains(&port.to_string()), "dry-run must report the orphaned port, stdout: {}", stdout);
+    assert!(stdout.contains("Would reap"), "dry-run must not claim to have acted, stdout: {}", stdout);
+
+    // Dry-run must not have touched anything.
+    let record_path = dir.join(format!("{}.json", port));
+    assert!(record_path.exists(), "dry-run must not delete the session record");
+    let client = CdpClient::attach(port).expect("dry-run must not close the orphaned browser");
+    let _ = client.send("Browser.close", serde_json::json!({}));
+}
+
+/// @covers: reap
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_reap_closes_orphaned_session_and_deletes_its_record() {
+    let port = next_port();
+    let dir = unique_session_dir("reap_closes_orphan");
+    launch_with_dead_caller(port, &dir, "data:text/html,reap-closes-orphan-test");
+
+    let reap_output = cli()
+        .args(["reap"])
+        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .output()
+        .expect("failed to run chromiumctl-cli reap");
+    assert!(
+        reap_output.status.success(),
+        "reap must exit 0, stderr: {}",
+        String::from_utf8_lossy(&reap_output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&reap_output.stdout);
+    assert!(stdout.contains("Reaped"), "reap must report what it reaped, stdout: {}", stdout);
+
+    let record_path = dir.join(format!("{}.json", port));
+    assert!(!record_path.exists(), "reap must delete the session record after closing the browser");
+    assert!(CdpClient::attach(port).is_err(), "reap must have actually closed the orphaned browser");
+}
+
+/// @covers: launch
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_launch_reap_stale_closes_other_orphans_before_launching() {
+    let orphan_port = next_port();
+    let new_port = next_port();
+    let dir = unique_session_dir("launch_reap_stale");
+
+    launch_with_dead_caller(orphan_port, &dir, "data:text/html,reap-stale-orphan");
+
+    let launch_output = cli()
+        .args([
+            "launch",
+            "--url", "data:text/html,reap-stale-new-session",
+            "--port", &new_port.to_string(),
+            "--reap-stale",
+        ])
+        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .output()
+        .expect("failed to run chromiumctl-cli launch --reap-stale");
+    assert!(
+        launch_output.status.success(),
+        "launch --reap-stale must exit 0, stderr: {}",
+        String::from_utf8_lossy(&launch_output.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&launch_output.stdout).contains("Reaped"),
+        "launch --reap-stale must report the orphan it cleaned up, stdout: {}",
+        String::from_utf8_lossy(&launch_output.stdout)
+    );
+
+    assert!(
+        CdpClient::attach(orphan_port).is_err(),
+        "--reap-stale must have closed the pre-existing orphaned browser"
+    );
+    assert!(
+        !dir.join(format!("{}.json", orphan_port)).exists(),
+        "--reap-stale must have deleted the orphan's session record"
+    );
+
+    // The new session itself must be unaffected by the opportunistic reap.
+    assert!(
+        dir.join(format!("{}.json", new_port)).exists(),
+        "the newly launched session's own record must exist"
+    );
+    let client = CdpClient::attach(new_port).expect("the newly launched browser must be reachable");
+    let _ = client.send("Browser.close", serde_json::json!({}));
+}

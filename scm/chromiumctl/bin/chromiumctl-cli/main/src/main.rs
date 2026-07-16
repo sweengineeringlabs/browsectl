@@ -2,6 +2,8 @@ use std::env;
 use std::process;
 
 mod commands;
+mod os_process;
+mod session;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -25,6 +27,7 @@ fn main() {
         "get-dom" => commands::get_dom::execute(cmd_args),
         "metrics" => commands::metrics::execute(cmd_args),
         "stop" => commands::stop::execute(cmd_args),
+        "reap" => commands::reap::execute(cmd_args),
         "help" | "-h" | "--help" => {
             print_help();
             Ok(())
@@ -57,6 +60,7 @@ fn print_help() {
     eprintln!("    get-dom      Export current DOM as JSON");
     eprintln!("    metrics      Get performance metrics");
     eprintln!("    stop         Terminate exactly the browser session at --port/--package");
+    eprintln!("    reap         Clean up sessions whose launch caller has died or gone stale");
     eprintln!("    help         Print this message\n");
     eprintln!("OPTIONS:\n");
     eprintln!("    --url <URL>           Target URL (launch, navigate)");
@@ -74,11 +78,17 @@ fn print_help() {
     eprintln!("    --format <FMT>        Image format: png, jpeg, webp (screenshot; default: png)");
     eprintln!("    --full-page           Capture beyond the viewport (screenshot)");
     eprintln!("    --timeout <SECS>      Operation timeout in seconds (wait; default: 30)");
-    eprintln!("    --headless            Accepted for compatibility; Chromium always runs headless\n");
+    eprintln!("    --headless            Accepted for compatibility; Chromium always runs headless");
+    eprintln!("    --reap-stale          Before launching, reap other sessions whose caller has died (launch)");
+    eprintln!("    --dry-run             List what reap would do without closing/deleting anything (reap)");
+    eprintln!("    --max-age <DUR>       Also reap sessions older than this even if their caller is alive");
+    eprintln!("                          (reap; e.g. 30, 30s, 5m, 1h)\n");
     eprintln!("EXAMPLES:\n");
     eprintln!("    chromiumctl launch --url https://example.com --port 9222\n");
     eprintln!("    chromiumctl eval --port 9222 --script \"document.title\"\n");
     eprintln!("    chromiumctl eval --package com.example.app --script \"document.title\"\n");
     eprintln!("    chromiumctl screenshot --port 9222 --output page.png\n");
     eprintln!("    chromiumctl stop --port 9222\n");
+    eprintln!("    chromiumctl reap --dry-run\n");
+    eprintln!("    chromiumctl reap --max-age 1h\n");
 }

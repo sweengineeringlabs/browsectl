@@ -117,6 +117,24 @@ chromiumctl-cli launch --url https://example.com --port 9222 --width 1920 --heig
 chromiumctl-cli stop --port 9222
 ```
 
+### `reap` — clean up sessions whose caller never called `stop`
+
+`launch` writes a small session record (port, launch time, and the PID of whatever process invoked `launch`) so a session can still be found and closed even if its caller crashes, gets killed, or times out before reaching `stop`. `reap` scans those records and closes/deletes the ones whose caller is no longer alive — a session whose caller is still running is left untouched:
+
+```sh
+chromiumctl-cli reap --dry-run       # list what would be reaped, without acting
+chromiumctl-cli reap                 # close and clean up every orphaned session
+chromiumctl-cli reap --max-age 1h    # also reap sessions older than 1h, even with a live caller
+```
+
+`launch --reap-stale` opportunistically runs the caller-liveness sweep (no `--max-age`) before starting its own session, bounding worst-case growth without needing a standing watchdog process:
+
+```sh
+chromiumctl-cli launch --url https://example.com --port 9223 --reap-stale
+```
+
+Session records live under `<tmp>/chromiumctl/sessions` by default; set `CHROMIUMCTL_SESSION_DIR` to use a different location (e.g. to isolate session state per sandbox or CI job).
+
 ### Commands that attach to a running session with `--port`
 
 ```sh
@@ -159,6 +177,7 @@ Built without the `android` feature, `--package` is still recognized but returns
 - Chromium is always launched headless (`--headless=new`) — the `--headless` flag is accepted for RFC-0001 compatibility but has no effect; there is currently no way to launch headed via this library.
 - `eval --output yaml` emits a single `result: <value>` line, not general YAML serialization — it's only ever used to render one string field.
 - On Windows, if a launched browser never becomes reachable (e.g. `wait_for_debugger` times out), the spawned process may be left running: Chrome's own launcher process re-execs and exits almost immediately, so the `Child` handle `CdpClient` holds doesn't correspond to the real, long-lived browser process, and `Child::kill()` on it is a no-op. Normal launch → use → drop is unaffected — `Drop` closes the browser over CDP itself (`Browser.close`) rather than relying on that handle — this only affects the rare case where the browser never came up in the first place.
+- Via the CLI, if the process that ran `chromiumctl-cli launch` dies (crash, `kill`, CI cancellation, timeout) before ever calling `stop`, the browser it started is left running with nothing tracking it except a session record. Run `chromiumctl-cli reap` (or `launch --reap-stale`) periodically — e.g. as a CI teardown step — to close and clean up those orphans; see the [`reap`](#reap--clean-up-sessions-whose-caller-never-called-stop) section above. `reap`'s caller-liveness check on Windows shells out to `tasklist`/PowerShell and on Unix to `ps` — no OS process API exists in `chromiumctl` itself, so this is best-effort like the rest of the CLI's process handling.
 - `--package` sessions can show a stale `prefers-color-scheme` (and possibly other media-query-driven rendering) relative to the device's actual live OS setting. chromiumctl queries Blink fresh on every command — it holds no cached state of its own — so this traces back to the attached WebView's renderer, which typically only picks up `Configuration` changes (like a system dark-mode toggle) when its host app explicitly propagates them; a `--package` attach just observes whatever that renderer already has. If a media-query-dependent screenshot or `eval` result looks wrong, cross-check against a real `adb shell screencap` before assuming the page itself is broken.
 - `screenshot --package` only captures the WebView's own rendered surface, not the full device screen — it's a `Page.captureScreenshot` of that page's compositor output, nothing more. Native Activity chrome (an `ActionBar`, a system dialog, a native file picker triggered by `onShowFileChooser`) is invisible to it, since those aren't part of the WebView's own render tree. For anything outside the page content, use `adb shell screencap` for a real full-device capture instead.
 - A synthetic `element.click()` dispatched via `eval` doesn't carry real user-gesture trust, so gesture-gated browser APIs — confirmed for `<input type="file">`'s file chooser, likely also fullscreen and clipboard-write — silently no-op: no error, no exception, no event. This is inherent to how Chromium's `Runtime.evaluate`-injected execution is, by design, not treated as trusted user activation; it isn't something chromiumctl can or should work around. Drive gesture-gated interactions with a real input event instead (e.g. `adb shell input tap` at the element's on-screen coordinates).
