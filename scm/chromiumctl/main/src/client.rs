@@ -177,11 +177,87 @@ impl CdpClient {
         self.send_cdp(method, params)
     }
 
+    /// Set the files on the `<input type="file">` matched by `selector`
+    /// (piercing into open shadow roots, same as [`PageEvaluator`]'s
+    /// default methods) via `DOM.setFileInputFiles`.
+    ///
+    /// Each entry in `file_paths` must exist on disk — checked up front, so
+    /// a typo'd path fails with an actionable error naming the exact path
+    /// rather than an opaque CDP error. Relative paths are resolved against
+    /// this process's current directory before being sent to Chromium
+    /// (which would otherwise resolve them against its own).
+    ///
+    /// Sets real files via CDP rather than synthesizing a `File`/
+    /// `DataTransfer` in JS: Chromium reads each file itself, so the
+    /// resulting `File` objects have correct, real metadata.
+    pub fn set_files(&self, selector: &str, file_paths: &[String]) -> Result<(), String> {
+        if file_paths.is_empty() {
+            return Err("set_files requires at least one file path".to_string());
+        }
+        let absolute_paths = file_paths
+            .iter()
+            .map(|p| resolve_existing_absolute_path(p))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let js = format!(
+            "(function() {{ {deep_query_selector} return __chromiumctl_deepQuerySelector(document, {selector}); }})()",
+            deep_query_selector = crate::api::js::deep_query_selector_js(),
+            selector = crate::api::js::js_string_literal(selector)?,
+        );
+        let eval_result = self.send_cdp(
+            "Runtime.evaluate",
+            serde_json::json!({
+                "expression":    js,
+                "returnByValue": false,
+                "awaitPromise":  true,
+            }),
+        )?;
+        if let Some(exc) = eval_result.get("exceptionDetails") {
+            return Err(format!("JS exception resolving selector: {}", exc));
+        }
+        let object_id = eval_result["result"]["objectId"]
+            .as_str()
+            .ok_or_else(|| format!("element not found: {}", selector))?;
+
+        self.send_cdp(
+            "DOM.setFileInputFiles",
+            serde_json::json!({ "files": absolute_paths, "objectId": object_id }),
+        )?;
+        Ok(())
+    }
+
     fn send_cdp(&self, method: &str, params: serde_json::Value) -> Result<serde_json::Value, String> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let mut socket = self.socket.lock()
             .map_err(|_| "socket lock poisoned".to_string())?;
         send_cdp_raw(&mut socket, id, method, params)
+    }
+
+    /// Block until a CDP *event* (unsolicited, no `id` — e.g.
+    /// `Fetch.requestPaused`) named `method` arrives, and return its
+    /// `params`. Messages that are responses to some other in-flight
+    /// command, or events with a different method name, are discarded
+    /// while waiting — same policy [`Self::send`]/[`Self::evaluate`] use
+    /// for responses that don't match their own request `id`.
+    ///
+    /// Intended for a connection dedicated to receiving one kind of event
+    /// (e.g. a `mock` session's own `CdpClient::attach`, after
+    /// `Fetch.enable`) — not general-purpose event multiplexing alongside
+    /// unrelated `send`/`evaluate` calls on the same connection, since a
+    /// response to some other command sent concurrently would also be
+    /// silently discarded here rather than delivered to its actual caller.
+    ///
+    /// Returns an error if no matching event arrives within `timeout`.
+    pub fn wait_for_event(&self, method: &str, timeout: Duration) -> Result<serde_json::Value, String> {
+        let deadline = Instant::now() + timeout;
+        let mut socket = self.socket.lock()
+            .map_err(|_| "socket lock poisoned".to_string())?;
+        let result = wait_for_event_raw(&mut socket, method, deadline, timeout);
+        // Always restore blocking mode, regardless of outcome, so a
+        // subsequent `send`/`evaluate` on this same connection doesn't
+        // inherit a leftover short read timeout and spuriously fail.
+        let _ = set_read_timeout(&socket, None);
+        result
     }
 
     fn wait_for_load(&self) {
@@ -267,6 +343,24 @@ impl PageEvaluator for CdpClient {
     }
 }
 
+/// Validate that `raw` exists on disk and resolve it to an absolute path,
+/// so relative paths are resolved against *this process's* current
+/// directory (what a caller actually means) rather than Chromium's own.
+fn resolve_existing_absolute_path(raw: &str) -> Result<String, String> {
+    let path = std::path::Path::new(raw);
+    if !path.exists() {
+        return Err(format!("file not found: '{}'", raw));
+    }
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(|e| format!("failed to resolve current directory: {}", e))?
+            .join(path)
+    };
+    Ok(absolute.to_string_lossy().into_owned())
+}
+
 // ---------------------------------------------------------------------------
 // WebSocket helpers
 // ---------------------------------------------------------------------------
@@ -319,6 +413,67 @@ fn send_cdp_raw(
     }
 }
 
+fn wait_for_event_raw(
+    socket:   &mut WebSocket<MaybeTlsStream<TcpStream>>,
+    method:   &str,
+    deadline: Instant,
+    timeout:  Duration,
+) -> Result<serde_json::Value, String> {
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(format!("timed out waiting for '{}' event after {:?}", method, timeout));
+        }
+        set_read_timeout(socket, Some(remaining))?;
+
+        let msg = match socket.read() {
+            Ok(m) => m,
+            Err(tungstenite::Error::Io(e)) if is_timeout_error(&e) => {
+                return Err(format!("timed out waiting for '{}' event after {:?}", method, timeout));
+            }
+            Err(e) => return Err(format!("CDP read failed while waiting for '{}': {}", method, e)),
+        };
+
+        match msg {
+            Message::Text(text) => {
+                let val: serde_json::Value = serde_json::from_str(&text)
+                    .map_err(|e| format!("CDP event parse error: {}", e))?;
+                if val["method"].as_str() == Some(method) {
+                    return Ok(val["params"].clone());
+                }
+                // A response to some other in-flight command, or an event
+                // we're not waiting for right now — discard and keep going.
+            }
+            Message::Ping(data) => {
+                socket.send(Message::Pong(data))
+                    .map_err(|e| format!("CDP pong failed: {}", e))?;
+            }
+            Message::Close(_) => return Err("CDP connection closed unexpectedly".into()),
+            _ => {}
+        }
+    }
+}
+
+fn is_timeout_error(e: &std::io::Error) -> bool {
+    matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut)
+}
+
+/// Set (or clear, with `None`) the underlying socket's read timeout.
+/// `MaybeTlsStream::Plain` is the only variant this build can ever
+/// construct (`tungstenite` is compiled with no TLS backend — CDP is
+/// always a local `ws://` connection, never `wss://`).
+fn set_read_timeout(
+    socket:  &WebSocket<MaybeTlsStream<TcpStream>>,
+    timeout: Option<Duration>,
+) -> Result<(), String> {
+    match socket.get_ref() {
+        MaybeTlsStream::Plain(stream) => stream
+            .set_read_timeout(timeout)
+            .map_err(|e| format!("failed to set read timeout: {}", e)),
+        _ => Err("unsupported stream type for read timeout".to_string()),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -330,6 +485,33 @@ mod tests {
     use crate::api::CdpClient;
     use crate::api::browser::BrowserLocator;
     use crate::core::browser::PlatformBrowserLocator;
+
+    #[test]
+    fn test_resolve_existing_absolute_path_fails_for_missing_file() {
+        let err = resolve_existing_absolute_path("this-file-does-not-exist-anywhere.tmp")
+            .expect_err("a nonexistent path must be rejected");
+        assert!(err.contains("this-file-does-not-exist-anywhere.tmp"), "error must name the exact path: {}", err);
+    }
+
+    // Note: relative-path resolution (joining against the process's current
+    // directory) is deliberately not unit-tested here via
+    // `std::env::set_current_dir` — that mutates process-global state, and
+    // `cargo test` runs this file's tests in parallel by default, making
+    // such a test a flakiness risk for any test added later. Covered
+    // instead by the `set-files` CLI e2e test, which exercises a real
+    // relative path through an isolated subprocess.
+
+    #[test]
+    fn test_resolve_existing_absolute_path_leaves_an_already_absolute_path_unchanged_in_meaning() {
+        let dir = std::env::temp_dir().join(format!("chromiumctl_client_test_abs_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("setup: temp dir must be creatable");
+        let file = dir.join("abs.txt");
+        std::fs::write(&file, b"x").expect("setup: file must be writable");
+
+        let resolved = resolve_existing_absolute_path(&file.to_string_lossy())
+            .expect("an existing absolute path must resolve");
+        assert!(std::path::Path::new(&resolved).exists());
+    }
 
     #[test]
     fn test_find_chrome_returns_path_or_helpful_error() {

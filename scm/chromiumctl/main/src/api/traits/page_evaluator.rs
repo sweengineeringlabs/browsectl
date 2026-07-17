@@ -1,3 +1,4 @@
+use crate::api::js::{deep_query_selector_js, js_string_literal};
 use crate::api::Rect;
 
 /// Evaluate JavaScript in a live browser page and query the DOM.
@@ -9,15 +10,20 @@ pub trait PageEvaluator {
     fn evaluate(&self, js: &str) -> Result<String, String>;
 
     /// Get the computed CSS value for `property` on the first element
-    /// matching `selector`.
+    /// matching `selector`. Selector resolution pierces into open shadow
+    /// roots (see [`deep_query_selector_js`]); closed shadow roots remain
+    /// unreachable.
     fn get_computed_style(&self, selector: &str, property: &str) -> Result<String, String> {
         let js = format!(
             r#"(function() {{
-                var el = document.querySelector('{}');
+                {deep_query_selector}
+                var el = __chromiumctl_deepQuerySelector(document, {selector});
                 if (!el) return '__NOT_FOUND__';
-                return window.getComputedStyle(el).getPropertyValue('{}');
+                return window.getComputedStyle(el).getPropertyValue({property});
             }})()"#,
-            selector, property
+            deep_query_selector = deep_query_selector_js(),
+            selector = js_string_literal(selector)?,
+            property = js_string_literal(property)?,
         );
         match self.evaluate(&js)?.as_str() {
             "__NOT_FOUND__" => Err(format!("element not found: {}", selector)),
@@ -26,6 +32,8 @@ pub trait PageEvaluator {
     }
 
     /// Get the computed CSS value for `property` on a pseudo-element.
+    /// Selector resolution pierces into open shadow roots; closed shadow
+    /// roots remain unreachable.
     fn get_pseudo_style(
         &self,
         selector: &str,
@@ -34,11 +42,15 @@ pub trait PageEvaluator {
     ) -> Result<String, String> {
         let js = format!(
             r#"(function() {{
-                var el = document.querySelector('{}');
+                {deep_query_selector}
+                var el = __chromiumctl_deepQuerySelector(document, {selector});
                 if (!el) return '__NOT_FOUND__';
-                return window.getComputedStyle(el, '{}').getPropertyValue('{}');
+                return window.getComputedStyle(el, {pseudo}).getPropertyValue({property});
             }})()"#,
-            selector, pseudo, property
+            deep_query_selector = deep_query_selector_js(),
+            selector = js_string_literal(selector)?,
+            pseudo = js_string_literal(pseudo)?,
+            property = js_string_literal(property)?,
         );
         match self.evaluate(&js)?.as_str() {
             "__NOT_FOUND__" => Err(format!("element not found: {}", selector)),
@@ -47,15 +59,19 @@ pub trait PageEvaluator {
     }
 
     /// Get the bounding rect of the first element matching `selector`.
+    /// Selector resolution pierces into open shadow roots; closed shadow
+    /// roots remain unreachable.
     fn get_bounding_rect(&self, selector: &str) -> Result<Rect, String> {
         let js = format!(
             r#"(function() {{
-                var el = document.querySelector('{}');
+                {deep_query_selector}
+                var el = __chromiumctl_deepQuerySelector(document, {selector});
                 if (!el) return '__NOT_FOUND__';
                 var r = el.getBoundingClientRect();
                 return JSON.stringify({{ x: r.x, y: r.y, width: r.width, height: r.height }});
             }})()"#,
-            selector
+            deep_query_selector = deep_query_selector_js(),
+            selector = js_string_literal(selector)?,
         );
         let raw = self.evaluate(&js)?;
         if raw == "__NOT_FOUND__" {

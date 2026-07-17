@@ -24,10 +24,12 @@ fn main() {
         "wait" => commands::wait::execute(cmd_args),
         "click" => commands::click::execute(cmd_args),
         "input" => commands::input::execute(cmd_args),
+        "set-files" => commands::set_files::execute(cmd_args),
         "get-dom" => commands::get_dom::execute(cmd_args),
         "metrics" => commands::metrics::execute(cmd_args),
         "stop" => commands::stop::execute(cmd_args),
         "reap" => commands::reap::execute(cmd_args),
+        "mock" => commands::mock::execute(cmd_args),
         "help" | "-h" | "--help" => {
             print_help();
             Ok(())
@@ -57,10 +59,12 @@ fn print_help() {
     eprintln!("    wait         Wait for condition (selector, text, navigation)");
     eprintln!("    click        Click element on page");
     eprintln!("    input        Type text into input field");
+    eprintln!("    set-files    Set files on an <input type=\"file\"> element");
     eprintln!("    get-dom      Export current DOM as JSON");
     eprintln!("    metrics      Get performance metrics");
     eprintln!("    stop         Terminate exactly the browser session at --port/--package");
     eprintln!("    reap         Clean up sessions whose launch caller has died or gone stale");
+    eprintln!("    mock         Intercept matching requests with a fake response (blocks until Ctrl-C)");
     eprintln!("    help         Print this message\n");
     eprintln!("OPTIONS:\n");
     eprintln!("    --url <URL>           Target URL (launch, navigate)");
@@ -69,8 +73,9 @@ fn print_help() {
     eprintln!("                          of --port (eval, navigate, wait, click, input, screenshot,");
     eprintln!("                          get-dom, metrics; requires the `android` build feature)");
     eprintln!("    --script <JS>         JavaScript to evaluate (eval)");
-    eprintln!("    --selector <SEL>      CSS selector (wait, click, input)");
+    eprintln!("    --selector <SEL>      CSS selector (wait, click, input, set-files)");
     eprintln!("    --text <TEXT>         Text to match (wait) or type (input)");
+    eprintln!("    --files <PATHS>       Comma-separated file paths to set (set-files)");
     eprintln!("    --navigation          Wait for document.readyState to complete (wait)");
     eprintln!("    --width <PX>          Viewport width (launch; default: 1920)");
     eprintln!("    --height <PX>         Viewport height (launch; default: 1080)");
@@ -82,7 +87,10 @@ fn print_help() {
     eprintln!("    --reap-stale          Before launching, reap other sessions whose caller has died (launch)");
     eprintln!("    --dry-run             List what reap would do without closing/deleting anything (reap)");
     eprintln!("    --max-age <DUR>       Also reap sessions older than this even if their caller is alive");
-    eprintln!("                          (reap; e.g. 30, 30s, 5m, 1h)\n");
+    eprintln!("                          (reap; e.g. 30, 30s, 5m, 1h)");
+    eprintln!("    --url-pattern <PAT>   Glob pattern of request URLs to intercept (mock; e.g. \"*api.example.com*\")");
+    eprintln!("    --status <CODE>       Fake HTTP status code to respond with (mock; default: 200)");
+    eprintln!("    --body <TEXT>         Fake response body (mock; default: empty)\n");
     eprintln!("EXAMPLES:\n");
     eprintln!("    chromiumctl launch --url https://example.com --port 9222\n");
     eprintln!("    chromiumctl eval --port 9222 --script \"document.title\"\n");
@@ -91,4 +99,6 @@ fn print_help() {
     eprintln!("    chromiumctl stop --port 9222\n");
     eprintln!("    chromiumctl reap --dry-run\n");
     eprintln!("    chromiumctl reap --max-age 1h\n");
+    eprintln!("    chromiumctl set-files --port 9222 --selector \"#file-input\" --files \"./a.png,./b.pdf\"\n");
+    eprintln!("    chromiumctl mock --port 9222 --url-pattern \"*api.example.com*\" --status 200 --body '{{\"ok\":true}}'\n");
 }

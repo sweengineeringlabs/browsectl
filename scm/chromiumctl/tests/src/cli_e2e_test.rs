@@ -24,6 +24,21 @@ fn unique_temp_file(name: &str) -> std::path::PathBuf {
     std::env::temp_dir().join(format!("chromiumctl_cli_test_{}_{}", std::process::id(), name))
 }
 
+/// A page with a button inside an *open* shadow root, wired to set
+/// `document.title` on click — used to prove shadow-piercing works through
+/// the real CLI dispatch path (`click`/`wait --selector`), not just the
+/// library's `PageEvaluator` trait directly.
+fn shadow_button_fixture_url() -> &'static str {
+    r#"data:text/html,<div id="host"></div><script>
+        var root = document.getElementById('host').attachShadow({mode: 'open'});
+        var btn = document.createElement('button');
+        btn.id = 'shadow-btn';
+        btn.textContent = 'go';
+        btn.addEventListener('click', function() { document.title = 'clicked'; });
+        root.appendChild(btn);
+    </script>"#
+}
+
 // ---------------------------------------------------------------------------
 // eval
 // ---------------------------------------------------------------------------
@@ -319,6 +334,29 @@ fn test_wait_returns_exit_2_when_no_condition_given() {
     assert_eq!(output.status.code(), Some(2), "missing --selector/--text/--navigation must exit 2");
 }
 
+/// @covers: wait
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_wait_selector_finds_element_inside_open_shadow_root() {
+    let port = next_port();
+    let client = CdpClientBuilder::new(shadow_button_fixture_url())
+        .port(port)
+        .launch()
+        .expect("setup: launch must succeed");
+
+    let output = cli()
+        .args(["wait", "--port", &port.to_string(), "--selector", "#shadow-btn", "--timeout", "5"])
+        .output()
+        .expect("failed to run chromiumctl-cli wait");
+
+    assert!(
+        output.status.success(),
+        "wait --selector must pierce into an open shadow root, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    drop(client);
+}
+
 // ---------------------------------------------------------------------------
 // click / input
 // ---------------------------------------------------------------------------
@@ -341,6 +379,39 @@ fn test_click_dispatches_real_mouse_event() {
         .expect("failed to run chromiumctl-cli click");
 
     assert!(output.status.success(), "click must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(client.evaluate("document.title").unwrap(), "clicked");
+
+    drop(client);
+}
+
+/// @covers: click
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_click_dispatches_real_mouse_event_inside_open_shadow_root() {
+    let port = next_port();
+    let client = CdpClientBuilder::new(shadow_button_fixture_url())
+        .port(port)
+        .launch()
+        .expect("setup: launch must succeed");
+
+    // Confirms the fixture actually exercises shadow piercing: a plain
+    // querySelector must NOT see the button before `click` is even run.
+    assert_eq!(
+        client.evaluate("document.querySelector('#shadow-btn') === null ? 'blind' : 'sees-it'").unwrap(),
+        "blind",
+        "fixture setup: plain querySelector must NOT see into the shadow root"
+    );
+
+    let output = cli()
+        .args(["click", "--port", &port.to_string(), "--selector", "#shadow-btn"])
+        .output()
+        .expect("failed to run chromiumctl-cli click");
+
+    assert!(
+        output.status.success(),
+        "click must pierce into an open shadow root, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert_eq!(client.evaluate("document.title").unwrap(), "clicked");
 
     drop(client);
@@ -384,6 +455,143 @@ fn test_input_types_real_text_into_field() {
     assert_eq!(client.evaluate("document.getElementById('box').value").unwrap(), "hello world");
 
     drop(client);
+}
+
+// ---------------------------------------------------------------------------
+// set-files
+// ---------------------------------------------------------------------------
+
+fn file_input_fixture_url() -> &'static str {
+    r#"data:text/html,<input type="file" id="file-input"><div id="result">none</div><script>
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            var f = e.target.files[0];
+            document.getElementById('result').textContent = f ? (f.name + ':' + f.size) : 'none';
+        });
+    </script>"#
+}
+
+/// @covers: set-files
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_set_files_sets_a_real_file_and_fires_change() {
+    let port = next_port();
+    let client = CdpClientBuilder::new(file_input_fixture_url())
+        .port(port)
+        .launch()
+        .expect("setup: launch must succeed");
+
+    let path = unique_temp_file("set_files_single.txt");
+    std::fs::write(&path, b"hello set-files").expect("setup: fixture file must be writable");
+
+    let output = cli()
+        .args([
+            "set-files",
+            "--port", &port.to_string(),
+            "--selector", "#file-input",
+            "--files", path.to_str().expect("setup: path must be valid UTF-8"),
+        ])
+        .output()
+        .expect("failed to run chromiumctl-cli set-files");
+
+    assert!(
+        output.status.success(),
+        "set-files must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let expected_name = path.file_name().unwrap().to_str().unwrap();
+    let result = client.evaluate("document.getElementById('result').textContent").unwrap();
+    assert_eq!(
+        result,
+        format!("{}:{}", expected_name, "hello set-files".len()),
+        "the input's change handler must see a real File with the real name and size — \
+         proves DOM.setFileInputFiles fires 'change' natively, no manual dispatch needed"
+    );
+
+    drop(client);
+}
+
+/// @covers: set-files
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_set_files_accepts_a_relative_path() {
+    let port = next_port();
+    let client = CdpClientBuilder::new(file_input_fixture_url())
+        .port(port)
+        .launch()
+        .expect("setup: launch must succeed");
+
+    let dir = std::env::temp_dir().join(format!("chromiumctl_cli_test_setfiles_relative_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("setup: temp dir must be creatable");
+    std::fs::write(dir.join("relative.txt"), b"rel").expect("setup: fixture file must be writable");
+
+    let output = cli()
+        .args(["set-files", "--port", &port.to_string(), "--selector", "#file-input", "--files", "relative.txt"])
+        .current_dir(&dir)
+        .output()
+        .expect("failed to run chromiumctl-cli set-files");
+
+    assert!(
+        output.status.success(),
+        "a relative --files path must resolve against this process's cwd, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        client.evaluate("document.getElementById('result').textContent").unwrap(),
+        "relative.txt:3"
+    );
+
+    drop(client);
+}
+
+/// @covers: set-files
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_set_files_returns_actionable_error_for_missing_file() {
+    let port = next_port();
+    let client = CdpClientBuilder::new(file_input_fixture_url())
+        .port(port)
+        .launch()
+        .expect("setup: launch must succeed");
+
+    let output = cli()
+        .args([
+            "set-files",
+            "--port", &port.to_string(),
+            "--selector", "#file-input",
+            "--files", "this-file-does-not-exist-anywhere.tmp",
+        ])
+        .output()
+        .expect("failed to run chromiumctl-cli set-files");
+
+    assert_eq!(output.status.code(), Some(1), "a missing file must fail (exit 1), not silently no-op");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("this-file-does-not-exist-anywhere.tmp"),
+        "error must name the exact missing path, stderr: {}",
+        stderr
+    );
+    assert_eq!(
+        client.evaluate("document.getElementById('result').textContent").unwrap(),
+        "none",
+        "no CDP call should have been attempted, so the input must be untouched"
+    );
+
+    drop(client);
+}
+
+/// @covers: set-files
+#[test]
+fn test_set_files_returns_exit_2_when_files_missing() {
+    let output = cli().args(["set-files", "--port", "9222", "--selector", "#x"]).output().unwrap();
+    assert_eq!(output.status.code(), Some(2));
+}
+
+/// @covers: set-files
+#[test]
+fn test_set_files_returns_exit_2_when_selector_missing() {
+    let output = cli().args(["set-files", "--port", "9222", "--files", "a.png"]).output().unwrap();
+    assert_eq!(output.status.code(), Some(2));
 }
 
 // ---------------------------------------------------------------------------
@@ -974,4 +1182,153 @@ fn test_launch_reap_stale_closes_other_orphans_before_launching() {
     );
     let client = CdpClient::attach(new_port).expect("the newly launched browser must be reachable");
     let _ = client.send("Browser.close", serde_json::json!({}));
+}
+
+// ---------------------------------------------------------------------------
+// mock
+// ---------------------------------------------------------------------------
+
+fn fetch_fixture_url() -> &'static str {
+    r#"data:text/html,<div id="result">pending</div><script>
+        window.runFetch = function(url) {
+            fetch(url)
+                .then(function(r) { return r.text(); })
+                .then(function(t) { document.getElementById('result').textContent = 'ok:' + t; })
+                .catch(function(e) { document.getElementById('result').textContent = 'error:' + e.message; });
+        };
+    </script>"#
+}
+
+/// Spawn `chromiumctl-cli mock` in the background (it blocks until
+/// interrupted) and wait for its own "ready" stdout line before returning,
+/// so callers never race a fetch against a not-yet-registered interception.
+fn spawn_mock_and_wait_ready(
+    port: u16,
+    url_pattern: &str,
+    status: &str,
+    body: &str,
+) -> std::process::Child {
+    use std::io::{BufRead, BufReader};
+
+    let mut child = cli()
+        .args([
+            "mock",
+            "--port", &port.to_string(),
+            "--url-pattern", url_pattern,
+            "--status", status,
+            "--body", body,
+        ])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("failed to spawn chromiumctl-cli mock");
+
+    let stdout = child.stdout.take().expect("mock's stdout must be piped");
+    let mut reader = BufReader::new(stdout);
+    let mut line = String::new();
+    let _ = reader.read_line(&mut line);
+    assert!(
+        line.contains("Mocking requests"),
+        "mock's first stdout line must confirm it's ready to intercept, got: {:?}",
+        line
+    );
+
+    child
+}
+
+/// @covers: mock
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_mock_fulfills_a_matching_request_with_the_fake_response() {
+    let port = next_port();
+    let client = CdpClientBuilder::new(fetch_fixture_url())
+        .port(port)
+        .launch()
+        .expect("setup: launch must succeed");
+
+    let mut mock = spawn_mock_and_wait_ready(
+        port,
+        "*mock-target.invalid*",
+        "200",
+        r#"{"faked":true}"#,
+    );
+
+    client
+        .evaluate("window.runFetch('https://mock-target.invalid/api'); 'started'")
+        .expect("triggering the fetch must not itself error");
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let mut result = "pending".to_string();
+    while std::time::Instant::now() < deadline {
+        result = client.evaluate("document.getElementById('result').textContent").unwrap();
+        if result != "pending" {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    let _ = mock.kill();
+    let _ = mock.wait();
+    drop(client);
+
+    assert_eq!(
+        result,
+        r#"ok:{"faked":true}"#,
+        "a request matching --url-pattern must receive the configured fake body"
+    );
+}
+
+/// @covers: mock
+#[test]
+#[ignore = "requires a running Chromium instance"]
+fn test_mock_leaves_non_matching_requests_untouched() {
+    let port = next_port();
+    let client = CdpClientBuilder::new(fetch_fixture_url())
+        .port(port)
+        .launch()
+        .expect("setup: launch must succeed");
+
+    // Registers interception for a *different* pattern than the one this
+    // test actually fetches from.
+    let mut mock = spawn_mock_and_wait_ready(
+        port,
+        "*mock-target.invalid*",
+        "200",
+        r#"{"faked":true}"#,
+    );
+
+    client
+        .evaluate("window.runFetch('https://other-target.invalid/api'); 'started'")
+        .expect("triggering the fetch must not itself error");
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let mut result = "pending".to_string();
+    while std::time::Instant::now() < deadline {
+        result = client.evaluate("document.getElementById('result').textContent").unwrap();
+        if result != "pending" {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    let _ = mock.kill();
+    let _ = mock.wait();
+    drop(client);
+
+    // A non-matching URL is never paused by Chromium's own Fetch pattern
+    // filter, so it hits the real (nonexistent) network and fails with a
+    // genuine DNS/connection error — proof it was never faked.
+    assert!(
+        result.starts_with("error:"),
+        "a request NOT matching --url-pattern must reach the real network untouched, got: {}",
+        result
+    );
+    assert_ne!(result, r#"ok:{"faked":true}"#, "must not have received the fake body meant for a different pattern");
+}
+
+/// @covers: mock
+#[test]
+fn test_mock_returns_exit_2_when_url_pattern_missing() {
+    let output = cli().args(["mock", "--port", "9222"]).output().unwrap();
+    assert_eq!(output.status.code(), Some(2));
 }

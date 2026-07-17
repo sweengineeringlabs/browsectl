@@ -42,12 +42,14 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
     let focused = client
         .evaluate(&format!(
             "(function() {{ \
-                var el = document.querySelector({}); \
+                {deep_query_selector} \
+                var el = __chromiumctl_deepQuerySelector(document, {selector}); \
                 if (!el) return 'no'; \
                 el.focus(); \
                 return 'yes'; \
             }})()",
-            selector_json
+            deep_query_selector = chromiumctl::deep_query_selector_js(),
+            selector = selector_json,
         ))
         .map_err(CliError::ExecutionFailed)?;
     if focused != "yes" {

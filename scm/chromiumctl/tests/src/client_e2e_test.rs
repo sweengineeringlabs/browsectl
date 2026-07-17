@@ -5,7 +5,7 @@
 //
 // Run with:
 //   cargo test -- --ignored --test-threads=1
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use chromiumctl::{CdpClient, PageEvaluator};
 use tungstenite as _; // tungstenite WebSocket transport is exercised by every CdpClient call below
@@ -211,4 +211,54 @@ fn test_attach_to_existing_browser() {
 fn test_ws_url_is_websocket_url() {
     let c = CdpClient::launch(&fixture_url()).unwrap();
     assert!(c.ws_url().starts_with("ws://"), "ws_url must start with ws://");
+}
+
+// ---------------------------------------------------------------------------
+// wait_for_event (issue #11: mock's Fetch.requestPaused interception loop
+// depends on this; tested independently here per that issue's AC)
+// ---------------------------------------------------------------------------
+
+/// @covers: wait_for_event
+#[test]
+#[ignore]
+fn test_wait_for_event_returns_params_of_a_real_event() {
+    let c = CdpClient::launch(&fixture_url()).unwrap();
+    c.send("Page.enable", serde_json::json!({})).unwrap();
+
+    // `navigate` itself already waits for readiness via polling `evaluate`,
+    // so trigger the navigation directly over CDP instead, to leave the
+    // real `Page.loadEventFired` event unconsumed for `wait_for_event` to
+    // actually receive.
+    c.send("Page.navigate", serde_json::json!({ "url": "data:text/html,<h1>done</h1>" })).unwrap();
+
+    let params = c
+        .wait_for_event("Page.loadEventFired", std::time::Duration::from_secs(10))
+        .expect("a real Page.loadEventFired event must be received");
+    assert!(params.is_object(), "event params must be a JSON object, got: {}", params);
+}
+
+/// @covers: wait_for_event
+#[test]
+#[ignore]
+fn test_wait_for_event_times_out_when_event_never_arrives() {
+    let c = CdpClient::launch(&fixture_url()).unwrap();
+    let err = c
+        .wait_for_event("Totally.FakeEventThatNeverFires", std::time::Duration::from_millis(500))
+        .expect_err("must time out, not hang forever, when the event never arrives");
+    assert!(err.contains("timed out"), "error must say it timed out, got: {}", err);
+}
+
+/// @covers: wait_for_event
+#[test]
+#[ignore]
+fn test_wait_for_event_timeout_does_not_break_subsequent_send_calls() {
+    let c = CdpClient::launch(&fixture_url()).unwrap();
+    let _ = c.wait_for_event("Totally.FakeEventThatNeverFires", std::time::Duration::from_millis(300));
+
+    // Regression check for the read-timeout restore: a timed-out
+    // `wait_for_event` must not leave the socket's read timeout set to a
+    // short duration, which would make this ordinary blocking call
+    // spuriously fail if `evaluate` ever took longer than that leftover
+    // window.
+    assert_eq!(c.evaluate("1 + 1").unwrap(), "2");
 }

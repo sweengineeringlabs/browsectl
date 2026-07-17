@@ -83,6 +83,8 @@ Enumerates active `webview_devtools_remote_*` debug sockets over `adb shell`, ma
 | `CdpClient::attach_android(package)` | Attach to a debuggable Android WebView via `adb` (feature `android`) |
 | `client.navigate(url)` | Navigate and wait for page load (10 s timeout) |
 | `client.send(method, params)` | Raw CDP command, returns `result` JSON |
+| `client.wait_for_event(method, timeout)` | Block for an unsolicited CDP event (e.g. `Fetch.requestPaused`), return its `params` |
+| `client.set_files(sel, paths)` | Set `<input type="file">.files` via `DOM.setFileInputFiles` (real files, no synthesis) |
 | `client.port()` | The remote-debugging port |
 | `client.ws_url()` | The WebSocket debugger URL |
 | `PageEvaluator::evaluate(js)` | Run JS, return string |
@@ -135,6 +137,16 @@ chromiumctl-cli launch --url https://example.com --port 9223 --reap-stale
 
 Session records live under `<tmp>/chromiumctl/sessions` by default; set `CHROMIUMCTL_SESSION_DIR` to use a different location (e.g. to isolate session state per sandbox or CI job).
 
+### `mock` — fake a network response for matching requests
+
+Intercepts requests whose URL matches a glob pattern and fulfills them with a fake status/body instead of hitting the real network — e.g. to exercise a success code path against a third-party API without real credentials. Off by default: nothing is intercepted unless you run `mock`, and only requests matching `--url-pattern` are ever touched — everything else reaches its real destination exactly as if `mock` weren't running.
+
+```sh
+chromiumctl-cli mock --port 9222 --url-pattern "*sts.amazonaws.com*" --status 200 --body '{"fake":"response"}'
+```
+
+Unlike every other subcommand, `mock` **blocks** — it keeps intercepting matching requests until you interrupt it (Ctrl-C) or an hour passes with no matching traffic at all. Run it in a separate terminal (or background job) while driving the rest of your session against the same `--port` from elsewhere. The fulfilled response always includes `Access-Control-Allow-Origin: *`, since a cross-origin request (the motivating case — mocking a third-party API) would otherwise fail CORS even though the response body itself is exactly what you asked for.
+
 ### Commands that attach to a running session with `--port`
 
 ```sh
@@ -144,12 +156,13 @@ chromiumctl-cli wait       --port 9222 --selector ".loaded" --timeout 10
 chromiumctl-cli wait       --port 9222 --navigation --timeout 10  # or --text "some content"
 chromiumctl-cli click      --port 9222 --selector "button.submit"
 chromiumctl-cli input      --port 9222 --selector "input#search" --text "hello"
+chromiumctl-cli set-files  --port 9222 --selector "#file-input" --files "./a.png,./b.pdf"
 chromiumctl-cli screenshot --port 9222 --output page.png --full-page
 chromiumctl-cli get-dom    --port 9222 --output dom.json
 chromiumctl-cli metrics    --port 9222 --output metrics.json
 ```
 
-`eval --output` selects the stdout format (`text`, `json`, `yaml` — default `text`). For `screenshot`/`get-dom`/`metrics`, `--output <FILE>` is a destination path; omit it on `get-dom`/`metrics` to print JSON to stdout instead.
+`eval --output` selects the stdout format (`text`, `json`, `yaml` — default `text`). For `screenshot`/`get-dom`/`metrics`, `--output <FILE>` is a destination path; omit it on `get-dom`/`metrics` to print JSON to stdout instead. `set-files --files` is a comma-separated list of paths on disk (relative paths resolve against `chromiumctl-cli`'s own current directory); each file is validated to exist before anything is sent to the browser, and Chromium reads the file itself over CDP (`DOM.setFileInputFiles`) — no base64 encoding, and the target `<input type="file">`'s `change` event fires natively, same as a real user picking a file.
 
 ### Attaching to Android instead of `--port` (feature `android`)
 
@@ -180,7 +193,8 @@ Built without the `android` feature, `--package` is still recognized but returns
 - Via the CLI, if the process that ran `chromiumctl-cli launch` dies (crash, `kill`, CI cancellation, timeout) before ever calling `stop`, the browser it started is left running with nothing tracking it except a session record. Run `chromiumctl-cli reap` (or `launch --reap-stale`) periodically — e.g. as a CI teardown step — to close and clean up those orphans; see the [`reap`](#reap--clean-up-sessions-whose-caller-never-called-stop) section above. `reap`'s caller-liveness check on Windows shells out to `tasklist`/PowerShell and on Unix to `ps` — no OS process API exists in `chromiumctl` itself, so this is best-effort like the rest of the CLI's process handling.
 - `--package` sessions can show a stale `prefers-color-scheme` (and possibly other media-query-driven rendering) relative to the device's actual live OS setting. chromiumctl queries Blink fresh on every command — it holds no cached state of its own — so this traces back to the attached WebView's renderer, which typically only picks up `Configuration` changes (like a system dark-mode toggle) when its host app explicitly propagates them; a `--package` attach just observes whatever that renderer already has. If a media-query-dependent screenshot or `eval` result looks wrong, cross-check against a real `adb shell screencap` before assuming the page itself is broken.
 - `screenshot --package` only captures the WebView's own rendered surface, not the full device screen — it's a `Page.captureScreenshot` of that page's compositor output, nothing more. Native Activity chrome (an `ActionBar`, a system dialog, a native file picker triggered by `onShowFileChooser`) is invisible to it, since those aren't part of the WebView's own render tree. For anything outside the page content, use `adb shell screencap` for a real full-device capture instead.
-- A synthetic `element.click()` dispatched via `eval` doesn't carry real user-gesture trust, so gesture-gated browser APIs — confirmed for `<input type="file">`'s file chooser, likely also fullscreen and clipboard-write — silently no-op: no error, no exception, no event. This is inherent to how Chromium's `Runtime.evaluate`-injected execution is, by design, not treated as trusted user activation; it isn't something chromiumctl can or should work around. Drive gesture-gated interactions with a real input event instead (e.g. `adb shell input tap` at the element's on-screen coordinates).
+- Selector resolution (`get_computed_style`, `get_pseudo_style`, `get_bounding_rect`, and everything built on them — `click`, `input`, `wait --selector`) pierces into *open* shadow roots but not *closed* ones (`attachShadow({mode: 'closed'})`). CDP itself can't see into a closed shadow root without `DOM.getFlattenedDocument`, which this crate doesn't use. An element that only exists inside a closed shadow root will report as not found, the same as if it didn't exist at all.
+- A synthetic `element.click()` dispatched via `eval` doesn't carry real user-gesture trust, so gesture-gated browser APIs — likely fullscreen and clipboard-write, confirmed for `<input type="file">`'s native file-picker dialog — silently no-op: no error, no exception, no event. This is inherent to how Chromium's `Runtime.evaluate`-injected execution is, by design, not treated as trusted user activation; it isn't something chromiumctl can or should work around. For `<input type="file">` specifically, use `set-files` instead — it sets `.files` directly via CDP (`DOM.setFileInputFiles`), sidestepping the native file-picker dialog entirely rather than trying to trigger it. For other gesture-gated interactions, drive a real input event instead (e.g. `adb shell input tap` at the element's on-screen coordinates).
 
 ## Further reading
 

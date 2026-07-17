@@ -42,7 +42,11 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
     validate_connect_args(port, &package)?;
 
     let condition_js = if let Some(sel) = &selector {
-        format!("document.querySelector({}) !== null", json_string(sel)?)
+        format!(
+            "(function() {{ {deep_query_selector} return __chromiumctl_deepQuerySelector(document, {selector}) !== null; }})()",
+            deep_query_selector = chromiumctl::deep_query_selector_js(),
+            selector = json_string(sel)?,
+        )
     } else if let Some(txt) = &text {
         format!(
             "document.body !== null && document.body.innerText.includes({})",

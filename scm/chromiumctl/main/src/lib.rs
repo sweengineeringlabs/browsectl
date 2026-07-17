@@ -29,7 +29,7 @@ mod core;
 mod saf;
 
 pub use api::{
-    BrowserLocator, BrowserSession, CdpClient, CdpClientBuilder, PageEvaluator,
-    PlatformBrowserLocator, Rect, Validator,
+    deep_query_selector_js, js_string_literal, BrowserLocator, BrowserSession, CdpClient,
+    CdpClientBuilder, PageEvaluator, PlatformBrowserLocator, Rect, Validator,
 };
 pub use saf::*;
