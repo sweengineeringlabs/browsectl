@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-07-17
+
+### Added
+- Selector resolution (`get_computed_style`, `get_pseudo_style`, `get_bounding_rect`, and everything built on them — `click`, `input`, `wait --selector`) now pierces into open shadow roots; closed shadow roots remain unreachable and are documented as a known limitation (RFC-0002, #11)
+- `chromiumctl-cli set-files --selector <SEL> --files <PATHS>` — sets real files on an `<input type="file">` via CDP's `DOM.setFileInputFiles`, no base64/`File`/`DataTransfer` synthesis needed; `change` fires natively (RFC-0002, #12)
+- `chromiumctl-cli mock --url-pattern <PAT> --status <CODE> --body <TEXT>` — fakes a response for matching requests via the `Fetch` domain, off by default and fully opt-in; blocks in the foreground until interrupted (RFC-0002, #13)
+- `CdpClient::wait_for_event(method, timeout)` — new public primitive for receiving unsolicited CDP events (e.g. `Fetch.requestPaused`), which the existing transport had no way to do
+
+### Fixed
+- `PageEvaluator`'s default methods (`get_computed_style`, `get_pseudo_style`, `get_bounding_rect`) previously interpolated selectors into JS unescaped — a selector containing a literal `'` broke the generated JS. Now uses a shared, safe escaping helper (RFC-0002, #11)
+
 ## [0.3.0] — 2026-07-17
 
 ### Added
