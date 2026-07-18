@@ -214,6 +214,19 @@ mod tests {
         assert_eq!(classify(&record, Some(3600)), None);
     }
 
+    /// @covers: execute
+    #[test]
+    fn test_execute_rejects_unknown_option() {
+        assert!(execute(&["--bogus".to_string()]).is_err());
+    }
+
+    /// @covers: execute
+    #[test]
+    fn test_execute_rejects_invalid_max_age_value() {
+        let result = execute(&["--max-age".to_string(), "notanumber".to_string()]);
+        assert!(result.is_err(), "a non-numeric --max-age must be rejected before reaping anything");
+    }
+
     #[test]
     fn test_caller_is_alive_detects_pid_reuse_via_start_time_mismatch() {
         let record = SessionRecord {

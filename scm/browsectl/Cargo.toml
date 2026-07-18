@@ -14,6 +14,10 @@ categories = ["development-tools::testing", "web-programming"]
 application_type = "lib"
 service_type = "client"
 
+[package.metadata.arch]
+application_type = "lib"
+service_type = "client"
+
 [lib]
 name = "browsectl"
 path = "main/src/lib.rs"

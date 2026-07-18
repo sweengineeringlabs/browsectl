@@ -57,7 +57,7 @@ fn parse_file_list(raw: &str) -> Result<Vec<String>, CliError> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -90,5 +90,27 @@ mod tests {
     #[test]
     fn test_parse_file_list_rejects_only_commas() {
         assert!(parse_file_list(",,").is_err());
+    }
+
+    /// @covers: execute
+    #[test]
+    fn test_execute_rejects_unknown_option() {
+        assert!(execute(&["--bogus".to_string()]).is_err());
+    }
+
+    /// @covers: execute
+    #[test]
+    fn test_execute_rejects_missing_selector() {
+        let result = execute(&["--port".to_string(), "9222".to_string(), "--files".to_string(), "a.png".to_string()]);
+        let err = result.expect_err("missing --selector must be rejected");
+        assert!(err.to_string().contains("--selector"), "error should name the missing flag: {}", err);
+    }
+
+    /// @covers: execute
+    #[test]
+    fn test_execute_rejects_missing_files() {
+        let result = execute(&["--port".to_string(), "9222".to_string(), "--selector".to_string(), "#f".to_string()]);
+        let err = result.expect_err("missing --files must be rejected");
+        assert!(err.to_string().contains("--files"), "error should name the missing flag: {}", err);
     }
 }

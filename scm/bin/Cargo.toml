@@ -14,6 +14,10 @@ categories = ["development-tools::testing", "command-line-utilities"]
 application_type = "cli"
 service_type = "client"
 
+[package.metadata.arch]
+application_type = "binary"
+service_type = "client"
+
 [[bin]]
 name = "browse"
 path = "main/src/main.rs"
