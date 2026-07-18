@@ -74,8 +74,7 @@ Two workspace members, both published: `browsectl` (the library) and `bin` (pack
 scm/
 ├── Cargo.toml                  Workspace root (members: browsectl, bin)
 ├── Cargo.lock
-├── config/
-│   └── deny.toml               cargo-deny config (cargo deny check --config config/deny.toml)
+├── deny.toml                   cargo-deny config (cargo deny check --config deny.toml)
 │
 ├── browsectl/                  Package "browsectl" — the published library
 │   ├── Cargo.toml

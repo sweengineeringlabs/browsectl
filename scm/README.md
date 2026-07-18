@@ -10,7 +10,7 @@ This is the Cargo workspace for BrowserCtl — see the [root README](../README.m
 ```
 scm/
 ├── Cargo.toml       workspace manifest (members: browsectl, bin)
-├── config/          deny.toml (license/advisory policy)
+├── deny.toml        license/advisory policy (cargo deny check --config deny.toml)
 ├── browsectl/        lib crate "browsectl" — published to crates.io
 │   ├── main/src/     library source
 │   ├── examples/     launch — minimal launch+evaluate example
