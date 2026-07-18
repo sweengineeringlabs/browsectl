@@ -34,6 +34,10 @@ fn main() {
             print_help();
             Ok(())
         }
+        "version" | "-V" | "--version" => {
+            print_version();
+            Ok(())
+        }
         _ => {
             eprintln!("Unknown command: {}", command);
             print_help();
@@ -47,10 +51,14 @@ fn main() {
     }
 }
 
+fn print_version() {
+    println!("browse {} (browsectl)", env!("CARGO_PKG_VERSION"));
+}
+
 fn print_help() {
-    eprintln!("chromiumctl — Chromium DevTools Protocol CLI\n");
+    eprintln!("browse — Chromium DevTools Protocol CLI\n");
     eprintln!("USAGE:\n");
-    eprintln!("    chromiumctl <COMMAND> [OPTIONS]\n");
+    eprintln!("    browse <COMMAND> [OPTIONS]\n");
     eprintln!("COMMANDS:\n");
     eprintln!("    launch       Launch headless browser and keep alive");
     eprintln!("    eval         Evaluate JavaScript in running session");
@@ -65,6 +73,7 @@ fn print_help() {
     eprintln!("    stop         Terminate exactly the browser session at --port/--package");
     eprintln!("    reap         Clean up sessions whose launch caller has died or gone stale");
     eprintln!("    mock         Intercept matching requests with a fake response (blocks until Ctrl-C)");
+    eprintln!("    version      Print the browse/browsectl version");
     eprintln!("    help         Print this message\n");
     eprintln!("OPTIONS:\n");
     eprintln!("    --url <URL>           Target URL (launch, navigate)");
@@ -92,13 +101,13 @@ fn print_help() {
     eprintln!("    --status <CODE>       Fake HTTP status code to respond with (mock; default: 200)");
     eprintln!("    --body <TEXT>         Fake response body (mock; default: empty)\n");
     eprintln!("EXAMPLES:\n");
-    eprintln!("    chromiumctl launch --url https://example.com --port 9222\n");
-    eprintln!("    chromiumctl eval --port 9222 --script \"document.title\"\n");
-    eprintln!("    chromiumctl eval --package com.example.app --script \"document.title\"\n");
-    eprintln!("    chromiumctl screenshot --port 9222 --output page.png\n");
-    eprintln!("    chromiumctl stop --port 9222\n");
-    eprintln!("    chromiumctl reap --dry-run\n");
-    eprintln!("    chromiumctl reap --max-age 1h\n");
-    eprintln!("    chromiumctl set-files --port 9222 --selector \"#file-input\" --files \"./a.png,./b.pdf\"\n");
-    eprintln!("    chromiumctl mock --port 9222 --url-pattern \"*api.example.com*\" --status 200 --body '{{\"ok\":true}}'\n");
+    eprintln!("    browse launch --url https://example.com --port 9222\n");
+    eprintln!("    browse eval --port 9222 --script \"document.title\"\n");
+    eprintln!("    browse eval --package com.example.app --script \"document.title\"\n");
+    eprintln!("    browse screenshot --port 9222 --output page.png\n");
+    eprintln!("    browse stop --port 9222\n");
+    eprintln!("    browse reap --dry-run\n");
+    eprintln!("    browse reap --max-age 1h\n");
+    eprintln!("    browse set-files --port 9222 --selector \"#file-input\" --files \"./a.png,./b.pdf\"\n");
+    eprintln!("    browse mock --port 9222 --url-pattern \"*api.example.com*\" --status 200 --body '{{\"ok\":true}}'\n");
 }

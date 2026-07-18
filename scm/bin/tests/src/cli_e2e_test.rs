@@ -21,7 +21,7 @@ fn cli() -> Command {
 }
 
 fn unique_temp_file(name: &str) -> std::path::PathBuf {
-    std::env::temp_dir().join(format!("chromiumctl_cli_test_{}_{}", std::process::id(), name))
+    std::env::temp_dir().join(format!("browsectl_cli_test_{}_{}", std::process::id(), name))
 }
 
 /// A page with a button inside an *open* shadow root, wired to set
@@ -632,7 +632,7 @@ fn test_set_files_accepts_a_relative_path() {
         .launch()
         .expect("setup: launch must succeed");
 
-    let dir = std::env::temp_dir().join(format!("chromiumctl_cli_test_setfiles_relative_{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("browsectl_cli_test_setfiles_relative_{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("setup: temp dir must be creatable");
     std::fs::write(dir.join("relative.txt"), b"rel").expect("setup: fixture file must be writable");
 
@@ -919,7 +919,7 @@ fn test_stop_returns_exit_2_when_port_and_package_both_given() {
 // ---------------------------------------------------------------------------
 
 fn unique_session_dir(name: &str) -> std::path::PathBuf {
-    std::env::temp_dir().join(format!("chromiumctl_cli_test_sessions_{}_{}", std::process::id(), name))
+    std::env::temp_dir().join(format!("browsectl_cli_test_sessions_{}_{}", std::process::id(), name))
 }
 
 /// Spawn `browse launch` via a short-lived wrapper process so the
@@ -937,7 +937,7 @@ fn launch_with_dead_caller(port: u16, dir: &std::path::Path, url: &str) {
             .arg("/C")
             .arg(cli_path)
             .args(["launch", "--url", url, "--port", &port.to_string()])
-            .env("CHROMIUMCTL_SESSION_DIR", dir)
+            .env("BROWSECTL_SESSION_DIR", dir)
             .output()
     } else {
         // `; true` prevents the shell from tail-call-exec'ing directly into
@@ -946,7 +946,7 @@ fn launch_with_dead_caller(port: u16, dir: &std::path::Path, url: &str) {
         Command::new("sh")
             .arg("-c")
             .arg(format!("'{}' launch --url '{}' --port {} ; true", cli_path, url, port))
-            .env("CHROMIUMCTL_SESSION_DIR", dir)
+            .env("BROWSECTL_SESSION_DIR", dir)
             .output()
     }
     .expect("failed to run wrapped browse launch");
@@ -963,7 +963,7 @@ fn test_reap_dry_run_reports_no_sessions_when_dir_is_empty() {
     let dir = unique_session_dir("empty");
     let output = cli()
         .args(["reap", "--dry-run"])
-        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse reap");
     assert!(
@@ -1001,7 +1001,7 @@ fn test_launch_writes_a_session_record_reap_can_read() {
 
     let output = cli()
         .args(["launch", "--url", "data:text/html,launch-record-test", "--port", &port.to_string()])
-        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse launch");
     assert!(output.status.success(), "launch must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
@@ -1027,7 +1027,7 @@ fn test_stop_deletes_the_session_record() {
 
     let launch_output = cli()
         .args(["launch", "--url", "data:text/html,stop-record-test", "--port", &port.to_string()])
-        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse launch");
     assert!(launch_output.status.success(), "setup: launch must succeed");
@@ -1037,7 +1037,7 @@ fn test_stop_deletes_the_session_record() {
 
     let stop_output = cli()
         .args(["stop", "--port", &port.to_string()])
-        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse stop");
     assert!(
@@ -1060,14 +1060,14 @@ fn test_reap_leaves_alive_callers_session_untouched() {
     // session must never look orphaned to `reap`.
     let launch_output = cli()
         .args(["launch", "--url", "data:text/html,alive-caller-test", "--port", &port.to_string()])
-        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse launch");
     assert!(launch_output.status.success(), "setup: launch must succeed");
 
     let reap_output = cli()
         .args(["reap"])
-        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse reap");
     assert!(
@@ -1100,7 +1100,7 @@ fn test_reap_with_max_age_leaves_alive_caller_untouched_across_repeated_calls() 
     // launched session to be reaped just because an age limit was given.
     let launch_output = cli()
         .args(["launch", "--url", "data:text/html,max-age-alive-test", "--port", &port.to_string()])
-        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse launch");
     assert!(launch_output.status.success(), "setup: launch must succeed");
@@ -1112,7 +1112,7 @@ fn test_reap_with_max_age_leaves_alive_caller_untouched_across_repeated_calls() 
     for attempt in 1..=2 {
         let reap_output = cli()
             .args(["reap", "--max-age", "1h"])
-            .env("CHROMIUMCTL_SESSION_DIR", &dir)
+            .env("BROWSECTL_SESSION_DIR", &dir)
             .output()
             .expect("failed to run browse reap");
         assert!(
@@ -1150,7 +1150,7 @@ fn test_reap_detects_pid_reuse_via_start_time_mismatch_and_reaps() {
     // process than the one `launch` originally recorded.
     let launch_output = cli()
         .args(["launch", "--url", "data:text/html,pid-reuse-test", "--port", &port.to_string()])
-        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse launch");
     assert!(launch_output.status.success(), "setup: launch must succeed");
@@ -1169,7 +1169,7 @@ fn test_reap_detects_pid_reuse_via_start_time_mismatch_and_reaps() {
 
     let reap_output = cli()
         .args(["reap"])
-        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse reap");
     assert!(
@@ -1201,7 +1201,7 @@ fn test_reap_dry_run_reports_orphaned_session_without_closing_it() {
 
     let reap_output = cli()
         .args(["reap", "--dry-run"])
-        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse reap");
     assert!(
@@ -1230,7 +1230,7 @@ fn test_reap_closes_orphaned_session_and_deletes_its_record() {
 
     let reap_output = cli()
         .args(["reap"])
-        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse reap");
     assert!(
@@ -1263,7 +1263,7 @@ fn test_launch_reap_stale_closes_other_orphans_before_launching() {
             "--port", &new_port.to_string(),
             "--reap-stale",
         ])
-        .env("CHROMIUMCTL_SESSION_DIR", &dir)
+        .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse launch --reap-stale");
     assert!(

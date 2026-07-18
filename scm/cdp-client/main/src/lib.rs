@@ -1,4 +1,4 @@
-//! `chromiumctl` — minimal Chromium DevTools Protocol client.
+//! `cdp-client` — minimal Chromium DevTools Protocol client.
 //!
 //! Works with any Chromium-based browser: Chrome, Edge, Brave, Arc, Vivaldi.
 //!

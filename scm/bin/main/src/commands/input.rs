@@ -43,7 +43,7 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         .evaluate(&format!(
             "(function() {{ \
                 {deep_query_selector} \
-                var el = __chromiumctl_deepQuerySelector(document, {selector}); \
+                var el = __cdp_client_deepQuerySelector(document, {selector}); \
                 if (!el) return 'no'; \
                 el.focus(); \
                 return 'yes'; \

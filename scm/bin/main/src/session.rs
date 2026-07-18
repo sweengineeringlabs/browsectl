@@ -24,9 +24,9 @@ pub(crate) struct SessionRecord {
 }
 
 /// Reads/writes [`SessionRecord`]s to a session directory, one JSON file per
-/// port. Overridable via `CHROMIUMCTL_SESSION_DIR` (tests use this to avoid
+/// port. Overridable via `BROWSECTL_SESSION_DIR` (tests use this to avoid
 /// touching a real machine's session state), defaulting to
-/// `<tmp>/chromiumctl/sessions`.
+/// `<tmp>/browsectl/sessions`.
 pub(crate) struct SessionStore;
 
 impl SessionStore {
@@ -63,10 +63,10 @@ pub(crate) fn now_unix_secs() -> u64 {
 }
 
 fn base_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("CHROMIUMCTL_SESSION_DIR") {
+    if let Ok(dir) = std::env::var("BROWSECTL_SESSION_DIR") {
         return PathBuf::from(dir);
     }
-    std::env::temp_dir().join("chromiumctl").join("sessions")
+    std::env::temp_dir().join("browsectl").join("sessions")
 }
 
 fn path_for(dir: &Path, port: u16) -> PathBuf {
@@ -120,7 +120,7 @@ mod tests {
 
     fn unique_test_dir(name: &str) -> PathBuf {
         std::env::temp_dir().join(format!(
-            "chromiumctl_session_test_{}_{}_{}",
+            "browsectl_session_test_{}_{}_{}",
             std::process::id(),
             name,
             now_unix_secs()

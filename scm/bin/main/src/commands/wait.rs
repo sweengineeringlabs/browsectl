@@ -43,7 +43,7 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
 
     let condition_js = if let Some(sel) = &selector {
         format!(
-            "(function() {{ {deep_query_selector} return __chromiumctl_deepQuerySelector(document, {selector}) !== null; }})()",
+            "(function() {{ {deep_query_selector} return __cdp_client_deepQuerySelector(document, {selector}) !== null; }})()",
             deep_query_selector = cdp_client::deep_query_selector_js(),
             selector = json_string(sel)?,
         )
