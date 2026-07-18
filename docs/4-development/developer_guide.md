@@ -68,7 +68,7 @@ fn get_navigation_history(&self) -> Result<serde_json::Value, String> {
 
 `src/` is always the leaf folder holding actual source, nested under a named unit (`main/`, `tests/`, or `examples/<name>/`) — every non-lib target has an explicit `[[bin]]`/`[[example]]`/`[[test]]` entry in `Cargo.toml` pointing at it, since none of these paths match Cargo's auto-discovery conventions.
 
-Two workspace members: `browsectl` (the library, published) and `bin` (package `browse`, the CLI — deliberately unpublished, `publish = false`). Each e2e test lives with whichever crate owns the `CARGO_BIN_EXE_*`/library surface it needs — see [`scm/README.md`](../../scm/README.md) for the top-level layout.
+Two workspace members, both published: `browsectl` (the library) and `bin` (package `browsectl-bin`, the CLI — installs `browse`). `browsectl-bin` depends on `browsectl`, so it publishes second, after `browsectl` is live on crates.io. Each e2e test lives with whichever crate owns the `CARGO_BIN_EXE_*`/library surface it needs — see [`scm/README.md`](../../scm/README.md) for the top-level layout.
 
 ```
 scm/
@@ -117,8 +117,8 @@ scm/
 │       ├── platform_browser_locator_e2e_test.rs  Platform discovery smoke tests
 │       └── adb_locator_e2e_test.rs           attach_android (feature `android`)
 │
-└── bin/                        Package "browse" — unpublished, builds binary `browse`
-    ├── Cargo.toml               Depends on browsectl (path dep, no version needed — never published)
+└── bin/                        Package "browsectl-bin", published — builds binary `browse`
+    ├── Cargo.toml               Depends on browsectl (version-pinned path dep, required to publish)
     ├── main/src/
     │   ├── main.rs              browse binary: arg dispatch, help, version
     │   ├── session.rs           SessionStore: launch/stop/reap record tracking

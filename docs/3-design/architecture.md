@@ -8,7 +8,7 @@
 
 `browsectl` implements a hand-written wrapper for exactly the CDP methods its consumers need (currently ~11, across `Page`, `Runtime`, `DOM`, `Input`, `Emulation`, `Performance`, `Fetch`, and `Browser`) — not code-generated bindings for the full protocol, which spans hundreds of methods across roughly 40 domains. "Minimal" describes that restraint on scope and dependencies (plain `tungstenite`, no async runtime, no `tokio`), not a limited feature set: the methods it does implement are enough to fully drive a browser — navigate, evaluate, screenshot, input, file-input injection, network mocking, performance metrics. New CDP surface is added when a real consumer needs it (see [Developer guide → Adding a new CDP method](../4-development/developer_guide.md#adding-a-new-cdp-method)), not speculatively.
 
-The `browse` CLI (package `browse`, unpublished — see [`scm/README.md`](../../scm/README.md)) is a separate crate layered on top of the `browsectl` library — it adds session tracking (`launch`/`stop`/`reap`) and CLI-level concerns (arg parsing, output formatting) but performs no CDP calls of its own that aren't exposed through the library first.
+The `browse` CLI (package `browsectl-bin` — see [`scm/README.md`](../../scm/README.md)) is a separate crate layered on top of the `browsectl` library — it adds session tracking (`launch`/`stop`/`reap`) and CLI-level concerns (arg parsing, output formatting) but performs no CDP calls of its own that aren't exposed through the library first.
 
 ## Use cases
 

@@ -16,12 +16,12 @@ scm/
 │   ├── examples/     launch — minimal launch+evaluate example
 │   ├── test-support/ fake-adb-for-tests — stand-in `adb` binary for Android e2e tests
 │   └── tests/src/    e2e tests exercising only the library
-└── bin/              bin crate "browse" — NOT published; builds the `browse` command
+└── bin/              bin crate "browsectl-bin", published — installs the `browse` command
     ├── main/src/      CLI source
     └── tests/src/     cli_e2e_test — the one suite that needs CARGO_BIN_EXE_browse
 ```
 
-The bin crate is deliberately unpublished (`publish = false` in its manifest) — it exists to build `browse` from a clone of this repo, not to be installed via `cargo install browse` from crates.io. Only `browsectl` (the library) is published.
+Both crates are published to crates.io: `browsectl` (the library) and `browsectl-bin` (the CLI, installing the `browse` command via `cargo install browsectl-bin`). `browsectl-bin` depends on `browsectl`, so publish order matters: `browsectl` must go up first, then `browsectl-bin` — publishing the CLI before the library is live on the registry fails with an unresolved dependency, which is expected, not a bug.
 
 Each e2e test lives with whichever crate owns the `CARGO_BIN_EXE_*` binary it depends on — `CARGO_BIN_EXE_<name>` is only set within a binary target's own package, not for a crate that merely depends on it.
 
@@ -115,18 +115,17 @@ Enumerates active `webview_devtools_remote_*` debug sockets over `adb shell`, ma
 | `PageEvaluator::set_viewport_width(px)` | Resize viewport |
 | `PageEvaluator::get_viewport_size()` | `(width, height)` in pixels |
 
-## CLI (package `browse`, unpublished — build from source)
+## CLI (package `browsectl-bin`, installs `browse`)
 
-Build it with (from `scm/`, where the workspace manifest lives):
+```sh
+cargo install browsectl-bin
+```
+
+or build it from a clone (from `scm/`, where the workspace manifest lives):
 
 ```sh
 cargo build --release --bin browse
-```
-
-or install it locally from this checkout (the package is not on crates.io, so `--path` is required):
-
-```sh
-cargo install --path bin
+# or: cargo install --path bin
 ```
 
 ### `launch` — start a browser and detach

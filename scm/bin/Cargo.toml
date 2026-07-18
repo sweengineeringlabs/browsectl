@@ -1,15 +1,14 @@
 [package]
-name = "browse"
+name = "browsectl-bin"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
-description = "CLI for the Chrome DevTools Protocol, built on the browsectl library — launch, attach, evaluate JS, control viewport"
+description = "CLI for the Chrome DevTools Protocol, built on the browsectl library — installs the `browse` command"
 keywords = ["cdp", "chromium", "chrome", "headless", "devtools"]
 categories = ["development-tools::testing", "command-line-utilities"]
-publish = false
 
 [package.metadata.struct-engine]
 application_type = "cli"
@@ -29,7 +28,7 @@ name = "cli_e2e_test"
 path = "tests/src/cli_e2e_test.rs"
 
 [dependencies]
-browsectl = { path = "../browsectl" }
+browsectl = { path = "../browsectl", version = "0.4.1" }
 serde.workspace         = true
 serde_json.workspace    = true
 data-encoding.workspace = true

@@ -12,16 +12,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "browse"
-version = "0.4.1"
-dependencies = [
- "browsectl",
- "data-encoding",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "browsectl"
 version = "0.4.1"
 dependencies = [
@@ -29,6 +19,16 @@ dependencies = [
  "serde",
  "serde_json",
  "tungstenite",
+]
+
+[[package]]
+name = "browsectl-bin"
+version = "0.4.1"
+dependencies = [
+ "browsectl",
+ "data-encoding",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

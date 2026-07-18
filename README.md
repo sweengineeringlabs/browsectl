@@ -7,7 +7,7 @@ A minimal Chromium DevTools Protocol (CDP) client for Rust, and the `browse` CLI
 BrowserCtl is two crates:
 
 - **`browsectl`** — a synchronous, zero-async-runtime CDP client library, published to crates.io. Launch or attach to a Chromium-based browser (Chrome, Edge, Brave, Arc, Vivaldi), evaluate JavaScript, read computed CSS, resize the viewport, navigate — over a plain WebSocket, no `tokio` required.
-- **`browse`** (package `browse`, not published — build from source) — a CLI exposing the library over the command line for shell scripts, CI, and non-Rust callers: launch/attach, eval, screenshot, click, input, file-input injection, network mocking, orphaned-session cleanup.
+- **`browsectl-bin`** (installs the `browse` command) — a CLI exposing the library over the command line for shell scripts, CI, and non-Rust callers: launch/attach, eval, screenshot, click, input, file-input injection, network mocking, orphaned-session cleanup.
 
 ## Why
 
@@ -29,12 +29,10 @@ let mut client = CdpClient::launch("https://example.com")?;
 let title = client.evaluate("document.title")?;
 ```
 
-The `browse` CLI wraps the same library for shell scripts, CI, and non-Rust callers. It isn't published — build it from a clone of this repo:
+The `browse` CLI wraps the same library for shell scripts, CI, and non-Rust callers:
 
 ```sh
-git clone https://github.com/sweengineeringlabs/browsectl
-cd browsectl/scm
-cargo install --path bin
+cargo install browsectl-bin
 
 browse launch --url https://example.com --port 9222
 browse eval --port 9222 --script "document.title"
