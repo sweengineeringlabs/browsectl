@@ -5,11 +5,11 @@ pub mod navigate;
 pub mod wait;
 pub mod click;
 pub mod input;
-pub mod get_dom;
+pub mod dom_snapshot;
 pub mod metrics;
 pub mod mock;
 pub mod reap;
-pub mod set_files;
+pub mod file_selection;
 pub mod stop;
 
 mod args;
