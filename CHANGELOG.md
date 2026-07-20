@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-07-20
+
+### Fixed
+- Removed unused `data-encoding` dependency from `browsectl`'s library manifest
+- `adb_locator.rs`'s hardcoded `HOME` env-var reads replaced with `dirs::home_dir()` (new optional dependency, gated behind the `android` feature)
+- 5 `unsafe` blocks in `adb_locator_e2e_test.rs` given proper `// SAFETY:` comments
+- Strengthened 4 test assertions that only checked `is_ok()`/`is_some()` with no payload or boundary check
+- Fixed a malformed `@covers` annotation with trailing prose breaking annotation parsing
+
+### Added
+- Real e2e test coverage for `CdpClient::set_files` (previously untested at the library level; only the CLI wrapper had coverage)
+
+### Changed
+- Test layout flattened from `tests/src/*.rs` + explicit `[[test]]` Cargo.toml entries to Cargo's auto-discovered `tests/*.rs` convention, on both `browsectl` and `browsectl-bin`
+- `commands/mod.rs` split into `error.rs`/`args.rs`/`connection.rs` — `mod.rs` is now pure declarations and re-exports
+- `deny.toml` moved from `scm/config/deny.toml` to `scm/deny.toml`
+- Internal CLI module files renamed to noun form: `get_dom.rs` → `dom_snapshot.rs`, `set_files.rs` → `file_selection.rs` (the `get-dom`/`set-files` CLI subcommands themselves are unchanged)
+
 ## [0.5.0] — 2026-07-18
 
 ### Changed
