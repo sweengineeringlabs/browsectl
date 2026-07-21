@@ -2,7 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::session_record::SessionRecord;
+use crate::api::session::{
+    DeleteSessionRequest, ListSessionsRequest, ListSessionsResponse, SessionError, SessionRecord,
+    SessionRepository, WriteSessionRequest,
+};
 
 /// Reads/writes [`SessionRecord`]s to a session directory, one JSON file per
 /// port. Overridable via `BROWSECTL_SESSION_DIR` (tests use this to avoid
@@ -10,28 +13,32 @@ use super::session_record::SessionRecord;
 /// `<tmp>/browsectl/sessions`.
 pub(crate) struct SessionStore;
 
-impl SessionStore {
-    /// Write (or overwrite) the session record for `record.port`, via
-    /// temp-file-then-rename so a concurrent `reap` scan never observes a
-    /// partially-written file.
-    pub(crate) fn write(record: &SessionRecord) -> Result<(), String> {
-        Self::write_in(&Self::base_dir(), record)
+impl SessionRepository for SessionStore {
+    /// Write (or overwrite) the session record for `request.record.port`,
+    /// via temp-file-then-rename so a concurrent `reap` scan never observes
+    /// a partially-written file.
+    fn write(&self, request: WriteSessionRequest) -> Result<(), SessionError> {
+        Self::write_in(&Self::base_dir(), &request.record)
     }
 
-    /// Delete the session record for `port`, if one exists. A missing file
-    /// is not an error — `stop`/`reap` may race harmlessly on cleanup.
-    pub(crate) fn delete(port: u16) {
-        Self::delete_in(&Self::base_dir(), port)
+    /// Delete the session record for `request.port`, if one exists. A
+    /// missing file is not an error — `stop`/`reap` may race harmlessly on
+    /// cleanup.
+    fn delete(&self, request: DeleteSessionRequest) -> Result<(), SessionError> {
+        Self::delete_in(&Self::base_dir(), request.port);
+        Ok(())
     }
 
     /// Read every session record currently on disk. Unreadable/corrupt
     /// entries are skipped rather than failing the whole scan — a torn
     /// write from a crashed `launch` shouldn't block `reap` from cleaning up
     /// everything else.
-    pub(crate) fn list() -> Vec<SessionRecord> {
-        Self::list_in(&Self::base_dir())
+    fn list(&self, _request: ListSessionsRequest) -> Result<ListSessionsResponse, SessionError> {
+        Ok(ListSessionsResponse { records: Self::list_in(&Self::base_dir()) })
     }
+}
 
+impl SessionStore {
     /// The current time as Unix seconds. `0` (the epoch) on the practically
     /// impossible case of a clock before 1970 — never mistaken for a real
     /// `launched_at`, since every real session is younger than that.
@@ -53,27 +60,27 @@ impl SessionStore {
         dir.join(format!("{}.json", port))
     }
 
-    fn write_in(dir: &Path, record: &SessionRecord) -> Result<(), String> {
+    fn write_in(dir: &Path, record: &SessionRecord) -> Result<(), SessionError> {
         fs::create_dir_all(dir)
-            .map_err(|e| format!("failed to create session dir '{}': {}", dir.display(), e))?;
+            .map_err(|e| SessionError(format!("failed to create session dir '{}': {}", dir.display(), e)))?;
 
         let body = serde_json::to_string_pretty(record)
-            .map_err(|e| format!("failed to serialize session record: {}", e))?;
+            .map_err(|e| SessionError(format!("failed to serialize session record: {}", e)))?;
 
         // Unique per-writer temp name so concurrent `launch`es never clobber
         // each other's in-flight temp file before the atomic rename.
         let tmp_path = dir.join(format!("{}.json.tmp-{}", record.port, std::process::id()));
         fs::write(&tmp_path, &body)
-            .map_err(|e| format!("failed to write '{}': {}", tmp_path.display(), e))?;
+            .map_err(|e| SessionError(format!("failed to write '{}': {}", tmp_path.display(), e)))?;
 
         let final_path = Self::path_for(dir, record.port);
         fs::rename(&tmp_path, &final_path).map_err(|e| {
-            format!(
+            SessionError(format!(
                 "failed to rename '{}' to '{}': {}",
                 tmp_path.display(),
                 final_path.display(),
                 e
-            )
+            ))
         })
     }
 
@@ -98,6 +105,13 @@ impl SessionStore {
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // Guards the two tests below that exercise `SessionRepository`'s trait
+    // methods through `BROWSECTL_SESSION_DIR` (process-global state) rather
+    // than the `*_in(dir, ..)` helpers the rest of this file's tests use to
+    // avoid it — prevents them racing each other under parallel test runs.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn unique_test_dir(name: &str) -> PathBuf {
         std::env::temp_dir().join(format!(
@@ -187,5 +201,32 @@ mod tests {
     fn test_now_unix_secs_returns_a_plausible_recent_timestamp() {
         // 2026-01-01T00:00:00Z, as a sanity floor — must not be near-zero or negative.
         assert!(SessionStore::now_unix_secs() > 1_767_225_600);
+    }
+
+    /// @covers: write
+    #[test]
+    fn test_write_via_trait_stores_a_record_list_can_read_back() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = unique_test_dir("trait_write");
+        std::env::set_var("BROWSECTL_SESSION_DIR", &dir);
+        let record = sample_record(9407);
+        SessionRepository::write(&SessionStore, WriteSessionRequest { record: record.clone() }).unwrap();
+        let response = SessionRepository::list(&SessionStore, ListSessionsRequest).unwrap();
+        assert_eq!(response.records, vec![record]);
+        std::env::remove_var("BROWSECTL_SESSION_DIR");
+    }
+
+    /// @covers: delete
+    #[test]
+    fn test_delete_via_trait_removes_a_written_record() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = unique_test_dir("trait_delete");
+        std::env::set_var("BROWSECTL_SESSION_DIR", &dir);
+        let record = sample_record(9408);
+        SessionRepository::write(&SessionStore, WriteSessionRequest { record: record.clone() }).unwrap();
+        SessionRepository::delete(&SessionStore, DeleteSessionRequest { port: 9408 }).unwrap();
+        let response = SessionRepository::list(&SessionStore, ListSessionsRequest).unwrap();
+        assert!(response.records.is_empty());
+        std::env::remove_var("BROWSECTL_SESSION_DIR");
     }
 }

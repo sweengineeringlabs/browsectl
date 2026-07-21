@@ -1,7 +1,8 @@
 use browsectl::CdpClientBuilder;
 
+use crate::api::session::{SessionRecord, SessionRepository, WriteSessionRequest};
 use crate::core::os_process::ProcessLocator;
-use crate::core::{SessionRecord, SessionStore};
+use crate::core::session::SessionStore;
 
 use super::{expect_value, parse_value, CliError};
 
@@ -91,7 +92,7 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         caller_pid,
         caller_start_time: ProcessLocator::start_time_fingerprint(caller_pid),
     };
-    if let Err(e) = SessionStore::write(&record) {
+    if let Err(e) = SessionStore.write(WriteSessionRequest { record }) {
         eprintln!("Warning: failed to record session for reap: {}", e);
     }
 

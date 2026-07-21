@@ -1,5 +1,6 @@
+use crate::api::session::{DeleteSessionRequest, ListSessionsRequest, SessionRecord, SessionRepository};
 use crate::core::os_process::ProcessLocator;
-use crate::core::{SessionRecord, SessionStore};
+use crate::core::session::SessionStore;
 
 use super::{expect_value, CliError};
 
@@ -53,13 +54,16 @@ pub(crate) struct ReapOutcome {
 /// caller is still alive and within `max_age_secs` (or no age limit was
 /// given) is left untouched.
 pub(crate) fn reap_sessions(dry_run: bool, max_age_secs: Option<u64>) -> Vec<ReapOutcome> {
-    SessionStore::list()
+    SessionStore
+        .list(ListSessionsRequest)
+        .map(|response| response.records)
+        .unwrap_or_default()
         .into_iter()
         .filter_map(|record| {
             let reason = classify(&record, max_age_secs)?;
             if !dry_run {
                 close_and_forget(&record);
-                SessionStore::delete(record.port);
+                let _ = SessionStore.delete(DeleteSessionRequest { port: record.port });
             }
             Some(ReapOutcome { record, reason })
         })

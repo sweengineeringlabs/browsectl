@@ -14,8 +14,11 @@ pub mod stop;
 
 mod args;
 mod connection;
-mod error;
 
 pub use args::{expect_value, parse_value, validate_connect_args};
 pub use connection::attach;
-pub(crate) use error::CliError;
+// `CliError` is a local alias for the real, public `api::ClientError` — kept
+// so every subcommand module's existing `use super::CliError` still resolves
+// without a crate-wide rename; the type itself lives in api/ since it's the
+// `Client` trait's contract type, not a `commands`-internal detail.
+pub(crate) use crate::api::ClientError as CliError;

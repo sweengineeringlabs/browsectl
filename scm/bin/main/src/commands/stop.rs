@@ -1,4 +1,5 @@
-use crate::core::SessionStore;
+use crate::api::session::{DeleteSessionRequest, SessionRepository};
+use crate::core::session::SessionStore;
 
 use super::{attach, parse_value, expect_value, validate_connect_args, CliError};
 
@@ -41,7 +42,7 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
 
     // No-op if `launch` never wrote one (e.g. this port was `attach`ed to,
     // not `launch`ed by this CLI) — `stop` still closes the browser either way.
-    SessionStore::delete(target_port);
+    let _ = SessionStore.delete(DeleteSessionRequest { port: target_port });
 
     println!("Stopped browser on port {}.", target_port);
     Ok(())
