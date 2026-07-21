@@ -1,7 +1,7 @@
 use browsectl::CdpClientBuilder;
 
 use crate::core::os_process::ProcessLocator;
-use crate::core::session::{now_unix_secs, SessionRecord, SessionStore};
+use crate::core::{SessionRecord, SessionStore};
 
 use super::{expect_value, parse_value, CliError};
 
@@ -87,7 +87,7 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
     let caller_pid = ProcessLocator::parent_pid(own_pid).unwrap_or(own_pid);
     let record = SessionRecord {
         port: client.port(),
-        launched_at: now_unix_secs(),
+        launched_at: SessionStore::now_unix_secs(),
         caller_pid,
         caller_start_time: ProcessLocator::start_time_fingerprint(caller_pid),
     };

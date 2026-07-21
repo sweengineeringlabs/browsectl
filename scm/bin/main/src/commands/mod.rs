@@ -18,4 +18,4 @@ mod error;
 
 pub use args::{expect_value, parse_value, validate_connect_args};
 pub use connection::attach;
-pub use error::CliError;
+pub(crate) use error::CliError;

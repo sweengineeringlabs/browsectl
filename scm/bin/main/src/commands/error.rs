@@ -1,6 +1,9 @@
 /// Errors surfaced by CLI subcommands, mapped to RFC-0001's exit codes.
+///
+/// `pub(crate)`, not `pub` — a binary crate has no external consumers to be
+/// a real public API for; `pub` here would be visibility with no audience.
 #[derive(Debug)]
-pub enum CliError {
+pub(crate) enum CliError {
     /// Exit code 1 — the command ran but the browser-side action failed
     /// (JS exception, element not found, bad CDP response).
     ExecutionFailed(String),
@@ -13,7 +16,7 @@ pub enum CliError {
 }
 
 impl CliError {
-    pub fn exit_code(&self) -> i32 {
+    pub(crate) fn exit_code(&self) -> i32 {
         match self {
             CliError::ExecutionFailed(_) => 1,
             CliError::InvalidArgs(_) => 2,

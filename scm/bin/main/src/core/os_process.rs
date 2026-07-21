@@ -18,7 +18,7 @@ impl ProcessLocator {
             Command::new("tasklist")
                 .args(["/FI", &format!("PID eq {}", pid), "/NH", "/FO", "CSV"])
                 .output()
-                .map(|out| tasklist_csv_has_pid(&String::from_utf8_lossy(&out.stdout), pid))
+                .map(|out| Self::tasklist_csv_has_pid(&String::from_utf8_lossy(&out.stdout), pid))
                 .unwrap_or(false)
         } else {
             Command::new("ps")
@@ -50,7 +50,7 @@ impl ProcessLocator {
                 ])
                 .output()
                 .ok()?;
-            parse_pid_output(&String::from_utf8_lossy(&out.stdout))
+            Self::parse_pid_output(&String::from_utf8_lossy(&out.stdout))
         } else {
             let out = Command::new("ps")
                 .args(["-p", &pid.to_string(), "-o", "ppid="])
@@ -82,7 +82,7 @@ impl ProcessLocator {
                 ])
                 .output()
                 .ok()?;
-            parse_ticks_output(&String::from_utf8_lossy(&out.stdout))
+            Self::parse_ticks_output(&String::from_utf8_lossy(&out.stdout))
         } else {
             let out = Command::new("ps")
                 .args(["-p", &pid.to_string(), "-o", "lstart="])
@@ -99,44 +99,44 @@ impl ProcessLocator {
             }
         }
     }
-}
 
-/// Check whether a `tasklist /FO CSV /NH` line names `pid` in its PID column
-/// (the second quoted field). Every field is quoted, so splitting on the
-/// literal `","` boundary is safe even when a field (e.g. mem usage) has an
-/// embedded comma of its own.
-fn tasklist_csv_has_pid(output: &str, pid: u32) -> bool {
-    let target = pid.to_string();
-    output.lines().any(|line| {
-        line.trim_matches('"')
-            .split("\",\"")
-            .nth(1)
-            .map(|field| field == target)
-            .unwrap_or(false)
-    })
-}
-
-/// Parse a bare PID from PowerShell `... .ParentProcessId` output: the
-/// number alone, or empty/whitespace when PowerShell found no such process
-/// (its error goes to stderr, not stdout).
-fn parse_pid_output(output: &str) -> Option<u32> {
-    let trimmed = output.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        trimmed.parse().ok()
+    /// Check whether a `tasklist /FO CSV /NH` line names `pid` in its PID
+    /// column (the second quoted field). Every field is quoted, so
+    /// splitting on the literal `","` boundary is safe even when a field
+    /// (e.g. mem usage) has an embedded comma of its own.
+    fn tasklist_csv_has_pid(output: &str, pid: u32) -> bool {
+        let target = pid.to_string();
+        output.lines().any(|line| {
+            line.trim_matches('"')
+                .split("\",\"")
+                .nth(1)
+                .map(|field| field == target)
+                .unwrap_or(false)
+        })
     }
-}
 
-/// Parse a bare `DateTime.Ticks` value from PowerShell `... .StartTime.Ticks`
-/// output: the number alone, or empty/whitespace when PowerShell found no
-/// such process.
-fn parse_ticks_output(output: &str) -> Option<String> {
-    let trimmed = output.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
+    /// Parse a bare PID from PowerShell `... .ParentProcessId` output: the
+    /// number alone, or empty/whitespace when PowerShell found no such
+    /// process (its error goes to stderr, not stdout).
+    fn parse_pid_output(output: &str) -> Option<u32> {
+        let trimmed = output.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            trimmed.parse().ok()
+        }
+    }
+
+    /// Parse a bare `DateTime.Ticks` value from PowerShell
+    /// `... .StartTime.Ticks` output: the number alone, or empty/whitespace
+    /// when PowerShell found no such process.
+    fn parse_ticks_output(output: &str) -> Option<String> {
+        let trimmed = output.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
     }
 }
 
@@ -148,49 +148,49 @@ mod tests {
     #[test]
     fn test_tasklist_csv_has_pid_finds_matching_row() {
         let output = "\"chrome.exe\",\"12345\",\"Console\",\"1\",\"50,000 K\"\r\n";
-        assert!(tasklist_csv_has_pid(output, 12345));
+        assert!(ProcessLocator::tasklist_csv_has_pid(output, 12345));
     }
 
     #[test]
     fn test_tasklist_csv_has_pid_returns_false_for_other_pid() {
         let output = "\"chrome.exe\",\"12345\",\"Console\",\"1\",\"50,000 K\"\r\n";
-        assert!(!tasklist_csv_has_pid(output, 99999));
+        assert!(!ProcessLocator::tasklist_csv_has_pid(output, 99999));
     }
 
     #[test]
     fn test_tasklist_csv_has_pid_returns_false_when_no_tasks_found() {
         let output = "INFO: No tasks are running which match the specified criteria.\r\n";
-        assert!(!tasklist_csv_has_pid(output, 12345));
+        assert!(!ProcessLocator::tasklist_csv_has_pid(output, 12345));
     }
 
     #[test]
     fn test_parse_ticks_output_extracts_value() {
         assert_eq!(
-            parse_ticks_output("\r\n639198444010163984\r\n"),
+            ProcessLocator::parse_ticks_output("\r\n639198444010163984\r\n"),
             Some("639198444010163984".to_string())
         );
     }
 
     #[test]
     fn test_parse_ticks_output_returns_none_when_blank() {
-        assert_eq!(parse_ticks_output("\r\n"), None);
-        assert_eq!(parse_ticks_output(""), None);
+        assert_eq!(ProcessLocator::parse_ticks_output("\r\n"), None);
+        assert_eq!(ProcessLocator::parse_ticks_output(""), None);
     }
 
     #[test]
     fn test_parse_pid_output_extracts_value() {
-        assert_eq!(parse_pid_output("\r\n4242\r\n"), Some(4242));
+        assert_eq!(ProcessLocator::parse_pid_output("\r\n4242\r\n"), Some(4242));
     }
 
     #[test]
     fn test_parse_pid_output_returns_none_when_blank() {
-        assert_eq!(parse_pid_output("\r\n"), None);
-        assert_eq!(parse_pid_output(""), None);
+        assert_eq!(ProcessLocator::parse_pid_output("\r\n"), None);
+        assert_eq!(ProcessLocator::parse_pid_output(""), None);
     }
 
     #[test]
     fn test_parse_pid_output_returns_none_for_non_numeric_garbage() {
-        assert_eq!(parse_pid_output("not a pid"), None);
+        assert_eq!(ProcessLocator::parse_pid_output("not a pid"), None);
     }
 
     #[test]

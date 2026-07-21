@@ -43,7 +43,7 @@ Most CDP methods are thin wrappers around `client.send()`. To expose one as a ty
 
 1. Add the method to the `PageEvaluator` trait in `scm/browsectl/main/src/api/traits/page_evaluator.rs` as a default implementation that calls `self.evaluate(js)`.
 2. If the method needs a new return type (e.g. a parsed struct), define it in `scm/browsectl/main/src/api/types/`.
-3. If the method cannot be expressed as a JS expression (e.g. `Network.enable`), implement it directly on `CdpClient` in `scm/browsectl/main/src/client.rs` via `self.send_cdp(method, params)`.
+3. If the method cannot be expressed as a JS expression (e.g. `Network.enable`), implement it directly on `CdpClient` in `scm/browsectl/main/src/core/client.rs` via `self.send_cdp(method, params)`.
 
 Example — wrapping `Page.getNavigationHistory`:
 
@@ -51,7 +51,7 @@ Example — wrapping `Page.getNavigationHistory`:
 // In scm/browsectl/main/src/api/traits/page_evaluator.rs
 fn get_navigation_history(&self) -> Result<serde_json::Value, String>;
 
-// In scm/browsectl/main/src/client.rs (CdpClient impl)
+// In scm/browsectl/main/src/core/client.rs (CdpClient impl)
 fn get_navigation_history(&self) -> Result<serde_json::Value, String> {
     self.send("Page.getNavigationHistory", serde_json::json!({}))
 }
@@ -80,8 +80,6 @@ scm/
 │   ├── Cargo.toml
 │   ├── main/src/
 │   │   ├── lib.rs              Public surface — re-exports from api/ and saf/
-│   │   ├── client.rs           CdpClient impl: launch, attach, attach_android, navigate,
-│   │   │                       send, WebSocket helpers, PageEvaluator impl
 │   │   ├── api/
 │   │   │   ├── types/cdp/
 │   │   │   │   ├── cdp_client.rs          Struct definition (fields pub(crate))
@@ -92,6 +90,8 @@ scm/
 │   │   │   ├── browser/browser_locator.rs BrowserLocator trait
 │   │   │   ├── spi/browser_session.rs     BrowserSession SPI trait
 │   │   │   └── js.rs                      deep_query_selector_js, js_string_literal
+│   │   ├── core/client.rs      CdpClient impl: launch, attach, attach_android, navigate,
+│   │   │                       send, WebSocket helpers, PageEvaluator impl
 │   │   ├── core/browser/
 │   │   │   └── platform_browser_locator.rs  find(), get_ws_url(), wait_for_debugger()
 │   │   ├── core/android/       (feature `android`)
@@ -120,9 +120,11 @@ scm/
     ├── Cargo.toml               Depends on browsectl (version-pinned path dep, required to publish)
     ├── main/src/
     │   ├── main.rs              browse binary: pure arg dispatch, no logic
-    │   ├── help.rs               print_help, print_version (static usage/version text)
-    │   ├── session.rs           SessionStore: launch/stop/reap record tracking
-    │   ├── os_process.rs        Caller-liveness check (tasklist/PowerShell, ps)
+    │   ├── core/
+    │   │   ├── help.rs          Help: print_help, print_version (static usage/version text)
+    │   │   ├── session_record.rs  SessionRecord: one launch's port/pid/start-time fingerprint
+    │   │   ├── session_store.rs   SessionStore: launch/stop/reap record tracking
+    │   │   └── os_process.rs      ProcessLocator: caller-liveness check (tasklist/PowerShell, ps)
     │   └── commands/
     │       ├── mod.rs           Only `pub mod`/`mod`/`pub use` — no logic
     │       ├── error.rs         CliError + Display + exit_code
@@ -130,7 +132,8 @@ scm/
     │       ├── connection.rs    attach, attach_android
     │       └── {launch,eval,...}.rs   One module per subcommand
     └── tests/                   Auto-discovered by Cargo — no [[test]] entries in Cargo.toml
-        └── cli_e2e_test.rs      Every browse subcommand, end to end
+        ├── cli_e2e_test.rs      Every browse subcommand, end to end
+        └── help_int_test.rs     Help: print_help/print_version output, via the real CLI
 ```
 
 ## Commit style

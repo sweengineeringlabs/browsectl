@@ -4,13 +4,13 @@ use std::process;
 mod commands;
 mod core;
 
-use crate::core::help;
+use crate::core::help::Help;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
-        help::print_help();
+        Help::print_help();
         process::exit(2);
     }
 
@@ -32,16 +32,16 @@ fn main() {
         "reap" => commands::reap::execute(cmd_args),
         "mock" => commands::mock::execute(cmd_args),
         "help" | "-h" | "--help" => {
-            help::print_help();
+            Help::print_help();
             Ok(())
         }
         "version" | "-V" | "--version" => {
-            help::print_version();
+            Help::print_version();
             Ok(())
         }
         _ => {
             eprintln!("Unknown command: {}", command);
-            help::print_help();
+            Help::print_help();
             process::exit(2);
         }
     };

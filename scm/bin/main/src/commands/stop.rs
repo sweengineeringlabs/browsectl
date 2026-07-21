@@ -1,4 +1,4 @@
-use crate::core::session::SessionStore;
+use crate::core::SessionStore;
 
 use super::{attach, parse_value, expect_value, validate_connect_args, CliError};
 

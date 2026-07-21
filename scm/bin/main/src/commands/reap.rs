@@ -1,5 +1,5 @@
 use crate::core::os_process::ProcessLocator;
-use crate::core::session::{now_unix_secs, SessionRecord, SessionStore};
+use crate::core::{SessionRecord, SessionStore};
 
 use super::{expect_value, CliError};
 
@@ -73,7 +73,7 @@ fn classify(record: &SessionRecord, max_age_secs: Option<u64>) -> Option<String>
         return Some("caller process is no longer running".to_string());
     }
     if let Some(max_age) = max_age_secs {
-        let age = now_unix_secs().saturating_sub(record.launched_at);
+        let age = SessionStore::now_unix_secs().saturating_sub(record.launched_at);
         if age > max_age {
             return Some(format!("exceeded --max-age ({}s old)", age));
         }
@@ -184,7 +184,7 @@ mod tests {
     fn test_classify_leaves_alive_caller_alone_when_no_max_age() {
         let record = SessionRecord {
             port: 1,
-            launched_at: now_unix_secs(),
+            launched_at: SessionStore::now_unix_secs(),
             caller_pid: std::process::id(),
             caller_start_time: None,
         };
@@ -207,7 +207,7 @@ mod tests {
     fn test_classify_leaves_alive_caller_alone_within_max_age() {
         let record = SessionRecord {
             port: 1,
-            launched_at: now_unix_secs(),
+            launched_at: SessionStore::now_unix_secs(),
             caller_pid: std::process::id(),
             caller_start_time: None,
         };
@@ -231,7 +231,7 @@ mod tests {
     fn test_caller_is_alive_detects_pid_reuse_via_start_time_mismatch() {
         let record = SessionRecord {
             port: 1,
-            launched_at: now_unix_secs(),
+            launched_at: SessionStore::now_unix_secs(),
             caller_pid: std::process::id(),
             caller_start_time: Some("stale-fingerprint-that-cannot-match".to_string()),
         };
