@@ -22,26 +22,14 @@ service_type = "client"
 name = "browsectl"
 path = "main/src/lib.rs"
 
-[features]
-# Enables CdpClient::attach_android, which shells out to `adb` to attach to a
-# debuggable Android WebView. Off by default — the crate's core scope is
-# desktop Chromium (Chrome/Edge/Brave/Arc/Vivaldi).
-android = ["dep:dirs"]
-
 [[example]]
 name = "launch"
 path = "examples/launch/main/src/main.rs"
-
-[[bin]]
-name = "fake-adb-for-tests"
-path = "test-support/fake-adb-for-tests/main/src/main.rs"
-required-features = ["android"]
 
 [dependencies]
 serde.workspace      = true
 serde_json.workspace = true
 tungstenite.workspace = true
-dirs = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json.workspace  = true

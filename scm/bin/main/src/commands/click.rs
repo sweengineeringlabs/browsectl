@@ -1,10 +1,9 @@
 use browsectl::PageEvaluator;
 
-use super::{attach, expect_value, parse_value, validate_connect_args, CliError};
+use super::{attach, expect_value, parse_value, CliError};
 
 pub fn execute(args: &[String]) -> Result<(), CliError> {
     let mut port: Option<u16> = None;
-    let mut package: Option<String> = None;
     let mut selector: Option<String> = None;
 
     let mut i = 0;
@@ -14,10 +13,6 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
                 i += 1;
                 port = Some(parse_value(args, i, "--port")?);
             }
-            "--package" => {
-                i += 1;
-                package = Some(expect_value(args, i, "--package")?);
-            }
             "--selector" => {
                 i += 1;
                 selector = Some(expect_value(args, i, "--selector")?);
@@ -26,11 +21,10 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         }
         i += 1;
     }
-    validate_connect_args(port, &package)?;
 
     let selector = selector.ok_or_else(|| CliError::InvalidArgs("--selector is required".to_string()))?;
 
-    let client = attach(port, package.as_deref())?;
+    let client = attach(port)?;
 
     let rect = client
         .get_bounding_rect(&selector)

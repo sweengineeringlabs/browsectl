@@ -29,7 +29,7 @@ cargo test --lib
 cargo test -- --ignored --test-threads=1
 ```
 
-Unit tests live in `#[cfg(test)]` blocks inside source files. Integration tests use the `_e2e_test.rs` suffix and live with whichever crate owns the binary/library surface they exercise: `scm/browsectl/tests/` for everything that only needs the library (including the `android`-gated `adb_locator_e2e_test`, since it drives `attach_android` directly, not the CLI), and `scm/bin/tests/cli_e2e_test.rs` for the one suite that spawns the `browse` binary (it needs `CARGO_BIN_EXE_browse`, which is only set within `browse`'s own package).
+Unit tests live in `#[cfg(test)]` blocks inside source files. Integration tests use the `_e2e_test.rs` suffix and live with whichever crate owns the binary/library surface they exercise: `scm/browsectl/tests/` for everything that only needs the library, and `scm/bin/tests/cli_e2e_test.rs` for the one suite that spawns the `browse` binary (it needs `CARGO_BIN_EXE_browse`, which is only set within `browse`'s own package).
 
 To target a specific browser:
 
@@ -90,20 +90,13 @@ scm/
 │   │   │   ├── browser/browser_locator.rs BrowserLocator trait
 │   │   │   ├── spi/browser_session.rs     BrowserSession SPI trait
 │   │   │   └── js.rs                      deep_query_selector_js, js_string_literal
-│   │   ├── core/client.rs      CdpClient impl: launch, attach, attach_android, navigate,
+│   │   ├── core/client.rs      CdpClient impl: launch, attach, navigate,
 │   │   │                       send, WebSocket helpers, PageEvaluator impl
 │   │   ├── core/browser/
 │   │   │   └── platform_browser_locator.rs  find(), get_ws_url(), wait_for_debugger()
-│   │   ├── core/android/       (feature `android`)
-│   │   │   └── adb_locator.rs  AdbLocator: find adb, enumerate/match WebView sockets, forward
 │   │   └── saf/mod.rs          Public constants: DEFAULT_DEBUG_PORT, viewport presets
 │   ├── examples/launch/main/src/
 │   │   └── main.rs             Minimal usage example ([[example]] name = "launch")
-│   ├── test-support/fake-adb-for-tests/main/src/
-│   │   └── main.rs             adb stand-in for adb_locator_e2e_test.rs — a [[bin]] target
-│   │                           (env!("CARGO_BIN_EXE_...") only works for [[bin]], not
-│   │                           [[example]]); lives here because it's what adb_locator_e2e_test
-│   │                           (also in this crate) needs at CARGO_BIN_EXE_fake-adb-for-tests
 │   └── tests/                  Auto-discovered by Cargo — no [[test]] entries in Cargo.toml
 │       ├── client_e2e_test.rs               CdpClient lifecycle
 │       ├── page_evaluator_e2e_test.rs        PageEvaluator methods
@@ -113,8 +106,7 @@ scm/
 │       ├── browser_locator_e2e_test.rs       Browser discovery
 │       ├── cdp_client_e2e_test.rs            CdpClient API surface
 │       ├── browser_session_e2e_test.rs       BrowserSession contract
-│       ├── platform_browser_locator_e2e_test.rs  Platform discovery smoke tests
-│       └── adb_locator_e2e_test.rs           attach_android (feature `android`)
+│       └── platform_browser_locator_e2e_test.rs  Platform discovery smoke tests
 │
 └── bin/                        Package "browsectl-bin", published — builds binary `browse`
     ├── Cargo.toml               Depends on browsectl (version-pinned path dep, required to publish)
@@ -129,7 +121,7 @@ scm/
     │       ├── mod.rs           Only `pub mod`/`mod`/`pub use` — no logic
     │       ├── error.rs         CliError + Display + exit_code
     │       ├── args.rs          expect_value, parse_value, validate_connect_args
-    │       ├── connection.rs    attach, attach_android
+    │       ├── connection.rs    attach
     │       └── {launch,eval,...}.rs   One module per subcommand
     └── tests/                   Auto-discovered by Cargo — no [[test]] entries in Cargo.toml
         ├── cli_e2e_test.rs      Every browse subcommand, end to end

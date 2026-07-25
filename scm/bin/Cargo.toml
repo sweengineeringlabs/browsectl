@@ -22,13 +22,8 @@ service_type = "client"
 name = "browse"
 path = "main/src/main.rs"
 
-[features]
-# Enables --package (Android WebView attach via adb). Forwards to browsectl's
-# own android feature, which implements the attach itself.
-android = ["browsectl/android"]
-
 [dependencies]
-browsectl = { path = "../browsectl", version = "0.5.1" }
+browsectl = { path = "../browsectl", version = "0.6.0" }
 serde.workspace         = true
 serde_json.workspace    = true
 data-encoding.workspace = true

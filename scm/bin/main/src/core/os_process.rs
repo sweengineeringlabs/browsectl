@@ -5,7 +5,7 @@ use std::process::Command;
 ///
 /// Shells out to `tasklist`/PowerShell (Windows) or `ps` (Unix) rather than
 /// adding a process-inspection crate, matching the existing convention in
-/// `core/browser/platform_browser_locator.rs` and `core/android/adb_locator.rs`.
+/// `core/browser/platform_browser_locator.rs`.
 /// PowerShell, not `wmic`, is the Windows tool here: `wmic` is deprecated
 /// and already absent on current Windows builds (confirmed missing on
 /// Windows 11 26200), where PowerShell is guaranteed present.

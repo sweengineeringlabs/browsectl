@@ -1,11 +1,10 @@
 use browsectl::PageEvaluator;
 use std::time::{Duration, Instant};
 
-use super::{attach, expect_value, parse_value, validate_connect_args, CliError};
+use super::{attach, expect_value, parse_value, CliError};
 
 pub fn execute(args: &[String]) -> Result<(), CliError> {
     let mut port: Option<u16> = None;
-    let mut package: Option<String> = None;
     let mut selector: Option<String> = None;
     let mut text: Option<String> = None;
     let mut navigation = false;
@@ -17,10 +16,6 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
             "--port" => {
                 i += 1;
                 port = Some(parse_value(args, i, "--port")?);
-            }
-            "--package" => {
-                i += 1;
-                package = Some(expect_value(args, i, "--package")?);
             }
             "--selector" => {
                 i += 1;
@@ -39,8 +34,6 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         }
         i += 1;
     }
-    validate_connect_args(port, &package)?;
-
     let condition_js = if let Some(sel) = &selector {
         format!(
             "(function() {{ {deep_query_selector} return __browsectl_deepQuerySelector(document, {selector}) !== null; }})()",
@@ -60,7 +53,7 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         ));
     };
 
-    let client = attach(port, package.as_deref())?;
+    let client = attach(port)?;
 
     let deadline = Instant::now() + Duration::from_secs(timeout_secs);
     loop {

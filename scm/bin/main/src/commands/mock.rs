@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use super::{attach, expect_value, parse_value, validate_connect_args, CliError};
+use super::{attach, expect_value, parse_value, CliError};
 
 /// How long to wait for the next matching request before giving up. Not
 /// truly unbounded: each wait is capped, even though the overall command is
@@ -10,7 +10,6 @@ const REQUEST_WAIT_TIMEOUT: Duration = Duration::from_secs(3600);
 
 pub fn execute(args: &[String]) -> Result<(), CliError> {
     let mut port: Option<u16> = None;
-    let mut package: Option<String> = None;
     let mut url_pattern: Option<String> = None;
     let mut status: u16 = 200;
     let mut body = String::new();
@@ -21,10 +20,6 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
             "--port" => {
                 i += 1;
                 port = Some(parse_value(args, i, "--port")?);
-            }
-            "--package" => {
-                i += 1;
-                package = Some(expect_value(args, i, "--package")?);
             }
             "--url-pattern" => {
                 i += 1;
@@ -42,12 +37,10 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         }
         i += 1;
     }
-    validate_connect_args(port, &package)?;
-
     let url_pattern =
         url_pattern.ok_or_else(|| CliError::InvalidArgs("--url-pattern is required".to_string()))?;
 
-    let client = attach(port, package.as_deref())?;
+    let client = attach(port)?;
 
     // Chromium only pauses requests matching this pattern — everything else
     // proceeds completely untouched, with no interception overhead. No

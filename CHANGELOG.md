@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-07-25
+
+### Removed
+- **Breaking:** Android WebView remote-debugging support removed entirely from `browsectl`/`browsectl-bin` — the `android` Cargo feature, `CdpClient::attach_android`, `core/android/adb_locator.rs`, `test-support/fake-adb-for-tests/`, `tests/adb_locator_e2e_test.rs`, and `browse`'s `--package` CLI flag are all gone. The now-unused optional `dirs` dependency was removed too.
+- This capability now lives in a separate, standalone crate rather than inside `browsectl` itself — `browsectl`'s core scope stays desktop-only (Chrome/Edge/Brave/Arc/Vivaldi), per its stated "hand-written CDP calls for exactly what its consumers need" restraint (see #18).
+
+### Known limitations
+- Removing `test-support/` incidentally fixed a long-standing `root_whitelist` structural finding, which surfaced three previously-hidden, pre-existing test-coverage gaps in `core/client.rs` (`send`, `set_files`, `wait_for_event` lack dedicated tests/`@covers` annotations) — not introduced by this change, not yet fixed.
+
 ## [0.5.2] — 2026-07-21
 
 ### Fixed

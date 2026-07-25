@@ -15,7 +15,7 @@ pub mod stop;
 mod args;
 mod connection;
 
-pub use args::{expect_value, parse_value, validate_connect_args};
+pub use args::{expect_value, parse_value};
 pub use connection::attach;
 // `CliError` is a local alias for the real, public `api::ClientError` — kept
 // so every subcommand module's existing `use super::CliError` still resolves
