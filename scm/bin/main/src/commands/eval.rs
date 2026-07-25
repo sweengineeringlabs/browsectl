@@ -1,10 +1,9 @@
 use browsectl::PageEvaluator;
 
-use super::{attach, expect_value, parse_value, validate_connect_args, CliError};
+use super::{attach, expect_value, parse_value, CliError};
 
 pub fn execute(args: &[String]) -> Result<(), CliError> {
     let mut port: Option<u16> = None;
-    let mut package: Option<String> = None;
     let mut script: Option<String> = None;
     let mut output_format = "text".to_string();
 
@@ -14,10 +13,6 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
             "--port" => {
                 i += 1;
                 port = Some(parse_value(args, i, "--port")?);
-            }
-            "--package" => {
-                i += 1;
-                package = Some(expect_value(args, i, "--package")?);
             }
             "--script" => {
                 i += 1;
@@ -31,11 +26,9 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         }
         i += 1;
     }
-    validate_connect_args(port, &package)?;
-
     let script = script.ok_or_else(|| CliError::InvalidArgs("--script is required".to_string()))?;
 
-    let client = attach(port, package.as_deref())?;
+    let client = attach(port)?;
     let result = client.evaluate(&script).map_err(CliError::ExecutionFailed)?;
 
     match output_format.as_str() {

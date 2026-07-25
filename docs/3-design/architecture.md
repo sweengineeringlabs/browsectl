@@ -90,7 +90,6 @@ scm/browsectl/main/src/
 │
 ├── core/                   L2 — implementations
 │   ├── browser/            PlatformBrowserLocator (finds Chrome/Edge/Brave on disk)
-│   ├── android/            AdbLocator (feature `android`: finds adb, enumerates WebView debug sockets)
 │   └── spi/                SPI slot (reserved for alternative transports)
 │
 └── saf/                    L3 — facade constants (viewport presets, timeout defaults)
@@ -118,11 +117,10 @@ CdpClient {
     chrome_process: Option<Child>          // Some → we launched it
     port:           u16
     ws_url:         String
-    adb_forward:    Option<(String, u16)>  // feature `android`: Some → we own an `adb forward`
 }
 ```
 
-On `Drop`, if this client launched the browser, it is asked to close itself over CDP (`Browser.close`) — not killed via the `Child` handle, which on Windows can point at an already-exited launcher stub rather than the real browser process. The WebSocket is then closed and `Child::kill()` is attempted as a fallback. If this client owns an `adb` port forward (via `attach_android`), that forward is also removed.
+On `Drop`, if this client launched the browser, it is asked to close itself over CDP (`Browser.close`) — not killed via the `Child` handle, which on Windows can point at an already-exited launcher stub rather than the real browser process. The WebSocket is then closed and `Child::kill()` is attempted as a fallback.
 
 ### `PageEvaluator` trait
 

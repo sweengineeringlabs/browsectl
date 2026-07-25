@@ -1,6 +1,6 @@
 /// Static usage/version text for the `browse` CLI — a unit struct (matching
-/// `ProcessLocator`/`SessionStore`/`AdbLocator`'s convention elsewhere in
-/// this codebase) since neither function carries or needs any state.
+/// `ProcessLocator`/`SessionStore`'s convention elsewhere in this codebase)
+/// since neither function carries or needs any state.
 pub(crate) struct Help;
 
 impl Help {
@@ -23,7 +23,7 @@ impl Help {
         eprintln!("    set-files    Set files on an <input type=\"file\"> element");
         eprintln!("    get-dom      Export current DOM as JSON");
         eprintln!("    metrics      Get performance metrics");
-        eprintln!("    stop         Terminate exactly the browser session at --port/--package");
+        eprintln!("    stop         Terminate exactly the browser session at --port");
         eprintln!("    reap         Clean up sessions whose launch caller has died or gone stale");
         eprintln!("    mock         Intercept matching requests with a fake response (blocks until Ctrl-C)");
         eprintln!("    version      Print the browse/browsectl version");
@@ -31,9 +31,6 @@ impl Help {
         eprintln!("OPTIONS:\n");
         eprintln!("    --url <URL>           Target URL (launch, navigate)");
         eprintln!("    --port <PORT>         Debug port (default: 9222)");
-        eprintln!("    --package <PKG>       Attach to a debuggable Android WebView via adb, instead");
-        eprintln!("                          of --port (eval, navigate, wait, click, input, screenshot,");
-        eprintln!("                          get-dom, metrics; requires the `android` build feature)");
         eprintln!("    --script <JS>         JavaScript to evaluate (eval)");
         eprintln!("    --selector <SEL>      CSS selector (wait, click, input, set-files)");
         eprintln!("    --text <TEXT>         Text to match (wait) or type (input)");
@@ -56,7 +53,6 @@ impl Help {
         eprintln!("EXAMPLES:\n");
         eprintln!("    browse launch --url https://example.com --port 9222\n");
         eprintln!("    browse eval --port 9222 --script \"document.title\"\n");
-        eprintln!("    browse eval --package com.example.app --script \"document.title\"\n");
         eprintln!("    browse screenshot --port 9222 --output page.png\n");
         eprintln!("    browse stop --port 9222\n");
         eprintln!("    browse reap --dry-run\n");

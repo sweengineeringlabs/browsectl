@@ -113,20 +113,6 @@ fn test_eval_returns_exit_2_when_script_missing() {
 
 /// @covers: eval
 #[test]
-fn test_eval_returns_exit_2_when_port_and_package_both_given() {
-    let output = cli()
-        .args(["eval", "--port", "9222", "--package", "com.example.app", "--script", "1"])
-        .output()
-        .expect("failed to run browse eval");
-    assert_eq!(
-        output.status.code(),
-        Some(2),
-        "--port and --package together must exit 2 (invalid args)"
-    );
-}
-
-/// @covers: eval
-#[test]
 #[ignore = "requires a running Chromium instance"]
 fn test_eval_output_json_preserves_boolean_type() {
     let port = next_port();
@@ -207,22 +193,6 @@ fn test_eval_prints_resolved_value_of_async_iife() {
     );
 
     drop(client);
-}
-
-/// @covers: eval
-#[test]
-#[cfg(not(feature = "android"))]
-fn test_eval_package_gives_actionable_error_without_android_feature() {
-    let output = cli()
-        .args(["eval", "--package", "com.example.app", "--script", "1"])
-        .output()
-        .expect("failed to run browse eval");
-    assert_eq!(output.status.code(), Some(2));
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("--features android"),
-        "error must tell the caller how to fix it, got: {stderr}"
-    );
 }
 
 // ---------------------------------------------------------------------------
@@ -900,19 +870,6 @@ fn test_stop_returns_exit_4_when_no_browser_listening() {
     assert_eq!(output.status.code(), Some(4), "unreachable debugger must exit 4 (connection failed)");
 }
 
-/// @covers: stop
-#[test]
-fn test_stop_returns_exit_2_when_port_and_package_both_given() {
-    let output = cli()
-        .args(["stop", "--port", "9222", "--package", "com.example.app"])
-        .output()
-        .unwrap();
-    assert_eq!(
-        output.status.code(),
-        Some(2),
-        "--port and --package together must exit 2 (invalid args)"
-    );
-}
 
 // ---------------------------------------------------------------------------
 // reap
