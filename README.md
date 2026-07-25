@@ -1,6 +1,6 @@
 # BrowserCtl
 
-A minimal Chromium DevTools Protocol (CDP) client for Rust, and the `browse` CLI built on it.
+Browser control for Rust — a minimal Chromium DevTools Protocol (CDP) client, and the `browse` CLI built on it.
 
 ## What
 

@@ -6,7 +6,7 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
-description = "Minimal Chromium DevTools Protocol client — launch, attach, evaluate JS, control viewport"
+description = "Browser control for Rust — a minimal Chromium DevTools Protocol client: launch, attach, evaluate JS, control viewport"
 keywords = ["cdp", "chromium", "chrome", "headless", "devtools"]
 categories = ["development-tools::testing", "web-programming"]
 
