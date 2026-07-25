@@ -20,7 +20,7 @@ service_type = "client"
 
 [[bin]]
 name = "browse"
-path = "main/src/main.rs"
+path = "src/main.rs"
 
 [dependencies]
 browsectl = { path = "../browsectl", version = "0.6.0" }

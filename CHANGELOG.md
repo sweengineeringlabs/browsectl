@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- Flattened workspace layout: `scm/browsectl/main/src/` → `scm/main/browsectl/src/`, `scm/bin/main/src/` → `scm/main/bin/src/`, `scm/browsectl/examples/launch/main/src/` → `scm/main/browsectl/examples/launch/src/`. Removes the redundant nested `main/` each crate repeated on top of the workspace's own `main/` grouping. No public API or behavior change — internal layout only.
+
 ## [0.6.0] — 2026-07-25
 
 ### Removed

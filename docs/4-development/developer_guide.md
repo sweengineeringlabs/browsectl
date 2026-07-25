@@ -29,7 +29,7 @@ cargo test --lib
 cargo test -- --ignored --test-threads=1
 ```
 
-Unit tests live in `#[cfg(test)]` blocks inside source files. Integration tests use the `_e2e_test.rs` suffix and live with whichever crate owns the binary/library surface they exercise: `scm/browsectl/tests/` for everything that only needs the library, and `scm/bin/tests/cli_e2e_test.rs` for the one suite that spawns the `browse` binary (it needs `CARGO_BIN_EXE_browse`, which is only set within `browse`'s own package).
+Unit tests live in `#[cfg(test)]` blocks inside source files. Integration tests use the `_e2e_test.rs` suffix and live with whichever crate owns the binary/library surface they exercise: `scm/main/browsectl/tests/` for everything that only needs the library, and `scm/main/bin/tests/cli_e2e_test.rs` for the one suite that spawns the `browse` binary (it needs `CARGO_BIN_EXE_browse`, which is only set within `browse`'s own package).
 
 To target a specific browser:
 
@@ -41,17 +41,17 @@ CHROME_PATH=/opt/chromium/chrome cargo test -- --ignored --test-threads=1
 
 Most CDP methods are thin wrappers around `client.send()`. To expose one as a typed helper:
 
-1. Add the method to the `PageEvaluator` trait in `scm/browsectl/main/src/api/traits/page_evaluator.rs` as a default implementation that calls `self.evaluate(js)`.
-2. If the method needs a new return type (e.g. a parsed struct), define it in `scm/browsectl/main/src/api/types/`.
-3. If the method cannot be expressed as a JS expression (e.g. `Network.enable`), implement it directly on `CdpClient` in `scm/browsectl/main/src/core/client.rs` via `self.send_cdp(method, params)`.
+1. Add the method to the `PageEvaluator` trait in `scm/main/browsectl/src/api/traits/page_evaluator.rs` as a default implementation that calls `self.evaluate(js)`.
+2. If the method needs a new return type (e.g. a parsed struct), define it in `scm/main/browsectl/src/api/types/`.
+3. If the method cannot be expressed as a JS expression (e.g. `Network.enable`), implement it directly on `CdpClient` in `scm/main/browsectl/src/core/client.rs` via `self.send_cdp(method, params)`.
 
 Example — wrapping `Page.getNavigationHistory`:
 
 ```rust
-// In scm/browsectl/main/src/api/traits/page_evaluator.rs
+// In scm/main/browsectl/src/api/traits/page_evaluator.rs
 fn get_navigation_history(&self) -> Result<serde_json::Value, String>;
 
-// In scm/browsectl/main/src/core/client.rs (CdpClient impl)
+// In scm/main/browsectl/src/core/client.rs (CdpClient impl)
 fn get_navigation_history(&self) -> Result<serde_json::Value, String> {
     self.send("Page.getNavigationHistory", serde_json::json!({}))
 }
@@ -66,66 +66,69 @@ fn get_navigation_history(&self) -> Result<serde_json::Value, String> {
 
 ## Project structure walkthrough
 
-`src/` is the leaf folder holding actual source for library/binary/example targets (`main/`, `examples/<name>/`) — those need an explicit `[[bin]]`/`[[example]]` entry in `Cargo.toml` since the path doesn't match Cargo's auto-discovery convention. `tests/` is the one exception: test files sit directly under `tests/*.rs` (no `src/` nesting, no explicit `[[test]]` entries) so Cargo auto-discovers them — this also matters for `arch`'s test-coverage checks (`all_methods_tested`, `test_covers_annotation`), which key off Cargo's own test-target discovery.
+Each crate's library/binary source lives at the plain, Cargo-standard `src/lib.rs`/`src/main.rs` (declared explicitly in `Cargo.toml` for clarity, though these now match Cargo's own default discovery paths). `examples/<name>/src/main.rs` has one extra `src/` level beyond what Cargo auto-discovers (`examples/<name>.rs` or `examples/<name>/main.rs`), so it still needs an explicit `[[example]]` entry. `tests/` is fully auto-discovered: test files sit directly under `tests/*.rs`, no explicit `[[test]]` entries — this also matters for `arch`'s test-coverage checks (`all_methods_tested`, `test_covers_annotation`), which key off Cargo's own test-target discovery.
 
 Two workspace members, both published: `browsectl` (the library) and `bin` (package `browsectl-bin`, the CLI — installs `browse`). `browsectl-bin` depends on `browsectl`, so it publishes second, after `browsectl` is live on crates.io. Each e2e test lives with whichever crate owns the `CARGO_BIN_EXE_*`/library surface it needs — see [`scm/README.md`](../../scm/README.md) for the top-level layout.
 
 ```
 scm/
-├── Cargo.toml                  Workspace root (members: browsectl, bin)
+├── Cargo.toml                  Workspace root (members: main/browsectl, main/bin)
 ├── Cargo.lock
 ├── deny.toml                   cargo-deny config (cargo deny check --config deny.toml)
 │
-├── browsectl/                  Package "browsectl" — the published library
-│   ├── Cargo.toml
-│   ├── main/src/
-│   │   ├── lib.rs              Public surface — re-exports from api/ and saf/
-│   │   ├── api/
-│   │   │   ├── types/cdp/
-│   │   │   │   ├── cdp_client.rs          Struct definition (fields pub(crate))
-│   │   │   │   └── cdp_client_builder.rs  Builder
-│   │   │   ├── types/rect.rs              Rect data type
-│   │   │   ├── traits/page_evaluator.rs   PageEvaluator trait + default impls
-│   │   │   ├── traits/validator.rs        Validator SPI trait
-│   │   │   ├── browser/browser_locator.rs BrowserLocator trait
-│   │   │   ├── spi/browser_session.rs     BrowserSession SPI trait
-│   │   │   └── js.rs                      deep_query_selector_js, js_string_literal
-│   │   ├── core/client.rs      CdpClient impl: launch, attach, navigate,
-│   │   │                       send, WebSocket helpers, PageEvaluator impl
-│   │   ├── core/browser/
-│   │   │   └── platform_browser_locator.rs  find(), get_ws_url(), wait_for_debugger()
-│   │   └── saf/mod.rs          Public constants: DEFAULT_DEBUG_PORT, viewport presets
-│   ├── examples/launch/main/src/
-│   │   └── main.rs             Minimal usage example ([[example]] name = "launch")
-│   └── tests/                  Auto-discovered by Cargo — no [[test]] entries in Cargo.toml
-│       ├── client_e2e_test.rs               CdpClient lifecycle
-│       ├── page_evaluator_e2e_test.rs        PageEvaluator methods
-│       ├── rect_e2e_test.rs                  Rect helpers (offline)
-│       ├── cdp_client_builder_e2e_test.rs    Builder
-│       ├── validator_e2e_test.rs             Validator trait contract
-│       ├── browser_locator_e2e_test.rs       Browser discovery
-│       ├── cdp_client_e2e_test.rs            CdpClient API surface
-│       ├── browser_session_e2e_test.rs       BrowserSession contract
-│       └── platform_browser_locator_e2e_test.rs  Platform discovery smoke tests
-│
-└── bin/                        Package "browsectl-bin", published — builds binary `browse`
-    ├── Cargo.toml               Depends on browsectl (version-pinned path dep, required to publish)
-    ├── main/src/
-    │   ├── main.rs              browse binary: pure arg dispatch, no logic
-    │   ├── core/
-    │   │   ├── help.rs          Help: print_help, print_version (static usage/version text)
-    │   │   ├── session_record.rs  SessionRecord: one launch's port/pid/start-time fingerprint
-    │   │   ├── session_store.rs   SessionStore: launch/stop/reap record tracking
-    │   │   └── os_process.rs      ProcessLocator: caller-liveness check (tasklist/PowerShell, ps)
-    │   └── commands/
-    │       ├── mod.rs           Only `pub mod`/`mod`/`pub use` — no logic
-    │       ├── error.rs         CliError + Display + exit_code
-    │       ├── args.rs          expect_value, parse_value, validate_connect_args
-    │       ├── connection.rs    attach
-    │       └── {launch,eval,...}.rs   One module per subcommand
-    └── tests/                   Auto-discovered by Cargo — no [[test]] entries in Cargo.toml
-        ├── cli_e2e_test.rs      Every browse subcommand, end to end
-        └── help_int_test.rs     Help: print_help/print_version output, via the real CLI
+└── main/
+    ├── browsectl/               Package "browsectl" — the published library
+    │   ├── Cargo.toml
+    │   ├── src/
+    │   │   ├── lib.rs              Public surface — re-exports from api/ and saf/
+    │   │   ├── api/
+    │   │   │   ├── types/cdp/
+    │   │   │   │   ├── cdp_client.rs          Struct definition (fields pub(crate))
+    │   │   │   │   └── cdp_client_builder.rs  Builder
+    │   │   │   ├── types/rect.rs              Rect data type
+    │   │   │   ├── traits/page_evaluator.rs   PageEvaluator trait + default impls
+    │   │   │   ├── traits/validator.rs        Validator SPI trait
+    │   │   │   ├── browser/browser_locator.rs BrowserLocator trait
+    │   │   │   ├── spi/browser_session.rs     BrowserSession SPI trait
+    │   │   │   └── js.rs                      deep_query_selector_js, js_string_literal
+    │   │   ├── core/client.rs      CdpClient impl: launch, attach, navigate,
+    │   │   │                       send, WebSocket helpers, PageEvaluator impl
+    │   │   ├── core/browser/
+    │   │   │   └── platform_browser_locator.rs  find(), get_ws_url(), wait_for_debugger()
+    │   │   └── saf/mod.rs          Public constants: DEFAULT_DEBUG_PORT, viewport presets
+    │   ├── examples/launch/src/
+    │   │   └── main.rs             Minimal usage example ([[example]] name = "launch")
+    │   └── tests/                  Auto-discovered by Cargo — no [[test]] entries in Cargo.toml
+    │       ├── client_e2e_test.rs               CdpClient lifecycle
+    │       ├── page_evaluator_e2e_test.rs        PageEvaluator methods
+    │       ├── rect_e2e_test.rs                  Rect helpers (offline)
+    │       ├── cdp_client_builder_e2e_test.rs    Builder
+    │       ├── validator_e2e_test.rs             Validator trait contract
+    │       ├── browser_locator_e2e_test.rs       Browser discovery
+    │       ├── cdp_client_e2e_test.rs            CdpClient API surface
+    │       ├── browser_session_e2e_test.rs       BrowserSession contract
+    │       └── platform_browser_locator_e2e_test.rs  Platform discovery smoke tests
+    │
+    └── bin/                     Package "browsectl-bin", published — builds binary `browse`
+        ├── Cargo.toml           Depends on browsectl (version-pinned path dep, required to publish)
+        ├── src/
+        │   ├── main.rs          browse binary: pure arg dispatch, no logic
+        │   ├── api/
+        │   │   ├── client/      Client trait + DTOs + colocated tests
+        │   │   └── session/     SessionRepository trait + DTOs + colocated tests
+        │   ├── core/
+        │   │   ├── client/      dispatcher.rs, error_ops.rs
+        │   │   ├── session/     store.rs, error_ops.rs
+        │   │   ├── help.rs      Help: print_help, print_version (static usage/version text)
+        │   │   └── os_process.rs  ProcessLocator: caller-liveness check (tasklist/PowerShell, ps)
+        │   └── commands/
+        │       ├── mod.rs       Only `pub mod`/`mod`/`pub use` — no logic
+        │       ├── args.rs      expect_value, parse_value
+        │       ├── connection.rs    attach
+        │       └── {launch,eval,...}.rs   One module per subcommand
+        └── tests/               Auto-discovered by Cargo — no [[test]] entries in Cargo.toml
+            ├── cli_e2e_test.rs      Every browse subcommand, end to end
+            └── help_int_test.rs     Help: print_help/print_version output, via the real CLI
 ```
 
 ## Commit style
