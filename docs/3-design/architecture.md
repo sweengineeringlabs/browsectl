@@ -77,18 +77,19 @@ Every default `PageEvaluator` method that resolves a CSS selector (`get_computed
 The crate follows SEA (Service → Engine → Adapter) layering:
 
 ```
-scm/browsectl/main/src/
-├── lib.rs                  Public surface (re-exports from api/)
-├── client.rs               CdpClient impl blocks + send_cdp_raw
+scm/main/browsectl/src/
+├── lib.rs                  Public surface (re-exports from api/ and saf/)
 │
 ├── api/                    L1 — public contracts (traits and types)
 │   ├── types/cdp/          CdpClient struct, CdpClientBuilder
 │   ├── types/rect.rs       Rect (bounding box data type)
 │   ├── traits/             PageEvaluator, Validator
 │   ├── browser/            BrowserLocator trait, PlatformBrowserLocator result type
-│   └── spi/                BrowserSession SPI interface
+│   ├── spi/                BrowserSession SPI interface
+│   └── js.rs                deep_query_selector_js, js_string_literal
 │
 ├── core/                   L2 — implementations
+│   ├── client.rs           CdpClient impl blocks: launch/attach/navigate/send + send_cdp_raw
 │   ├── browser/            PlatformBrowserLocator (finds Chrome/Edge/Brave on disk)
 │   └── spi/                SPI slot (reserved for alternative transports)
 │

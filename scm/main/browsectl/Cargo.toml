@@ -20,11 +20,11 @@ service_type = "client"
 
 [lib]
 name = "browsectl"
-path = "main/src/lib.rs"
+path = "src/lib.rs"
 
 [[example]]
 name = "launch"
-path = "examples/launch/main/src/main.rs"
+path = "examples/launch/src/main.rs"
 
 [dependencies]
 serde.workspace      = true

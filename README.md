@@ -19,7 +19,7 @@ Use `browsectl` as a Rust dependency when you need programmatic control of a rea
 
 ```toml
 [dependencies]
-browsectl = "0.5"
+browsectl = "0.6"
 ```
 
 ```rust
