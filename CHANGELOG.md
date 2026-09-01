@@ -1,9 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## [0.6.1] — 2026-09-01
 
 ### Changed
 - Flattened workspace layout: `scm/browsectl/main/src/` → `scm/main/browsectl/src/`, `scm/bin/main/src/` → `scm/main/bin/src/`, `scm/browsectl/examples/launch/main/src/` → `scm/main/browsectl/examples/launch/src/`. Removes the redundant nested `main/` each crate repeated on top of the workspace's own `main/` grouping. No public API or behavior change — internal layout only.
+
+### Documentation
+- Added `docs/rfcs/README.md` indexing all 3 RFCs, linked from `scm/README.md` — they were previously unreachable from any README, only discoverable by browsing the file tree.
+- Added `examples/launch/README.md` — the example had none.
 
 ## [0.6.0] — 2026-07-25
 
