@@ -4,6 +4,7 @@ This is the Cargo workspace for BrowserCtl — see the [root README](../README.m
 
 - [Architecture](../docs/3-design/architecture.md)
 - [Developer guide](../docs/4-development/developer_guide.md)
+- [RFCs](../docs/rfcs/README.md)
 
 ## Crate layout
 
