@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.6.2] — 2026-09-04
+
+### Documentation
+- Added `README.md` to both `browsectl` and `browsectl-bin` — each published crate had none, so its crates.io page rendered "appears to have no README.md file". No code change.
+
 ## [0.6.1] — 2026-09-01
 
 ### Changed
