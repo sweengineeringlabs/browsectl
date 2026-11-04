@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Added
+- `scripts/dev/build.sh`: build and verify locally with no dependency on GitHub Actions: the toolchain-pin check, `fmt`, `clippy`, tests, a release build for this machine with a `--version` assertion, and independent verification of the staged release (names, checksums, manifest).
+- `scripts/dev/ship.sh`: ship a release by hand when the release workflow cannot run. Builds and verifies locally, then creates a **draft** GitHub release; nothing is published without `--execute`, and making a draft public is a separate confirmed `--publish` step. Refuses a dirty tree, a tag that is not at `HEAD` or not on the remote, a release that already exists, a partial platform set (without `--allow-partial`) and any checksum mismatch; `--collect` merges binaries built on other machines.
 - CI (`.github/workflows/ci.yml`): `fmt`, `clippy --all-targets -D warnings` and the test suite on Linux, macOS (arm64 and x86_64) and Windows, plus a `toolchain pins` job that fails if `rust-version`, `scm/rust-toolchain.toml` and every workflow's toolchain pin differ.
 - Release workflow (`.github/workflows/release.yml`): on a `v*` tag, builds `browse` natively for `x86_64-unknown-linux-gnu`, `aarch64-apple-darwin`, `x86_64-apple-darwin` and `x86_64-pc-windows-msvc`, runs each binary's `--version` on its own platform, and creates a draft release with `SHA256SUMS` and the toolchain manifest (`tool: browsectl`, assets named `browsectl-<target>`). It refuses to produce a manifest unless all four binaries exist.
 - `scm/rust-toolchain.toml` pinning Rust 1.99.1.
