@@ -46,7 +46,10 @@ impl ProcessLocator {
                     "-NoProfile",
                     "-NonInteractive",
                     "-Command",
-                    &format!("(Get-CimInstance Win32_Process -Filter 'ProcessId={}').ParentProcessId", pid),
+                    &format!(
+                        "(Get-CimInstance Win32_Process -Filter 'ProcessId={}').ParentProcessId",
+                        pid
+                    ),
                 ])
                 .output()
                 .ok()?;
@@ -198,7 +201,10 @@ mod tests {
         let pid = std::process::id();
         let parent = ProcessLocator::parent_pid(pid).expect("current process must have a parent");
         assert_ne!(parent, pid, "a process cannot be its own parent");
-        assert!(ProcessLocator::is_alive(parent), "the test runner that spawned us must still be alive");
+        assert!(
+            ProcessLocator::is_alive(parent),
+            "the test runner that spawned us must still be alive"
+        );
     }
 
     #[test]

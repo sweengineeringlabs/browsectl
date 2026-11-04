@@ -54,7 +54,9 @@ mod tests {
     use super::*;
 
     fn request(args: &[&str]) -> DispatchRequest {
-        DispatchRequest { args: args.iter().map(|s| s.to_string()).collect() }
+        DispatchRequest {
+            args: args.iter().map(|s| s.to_string()).collect(),
+        }
     }
 
     /// @covers: dispatch
@@ -66,19 +68,34 @@ mod tests {
     /// @covers: dispatch
     #[test]
     fn test_dispatch_returns_2_for_unknown_command() {
-        assert_eq!(BrowseClient.dispatch(request(&["bogus"])).unwrap().exit_code, 2);
+        assert_eq!(
+            BrowseClient
+                .dispatch(request(&["bogus"]))
+                .unwrap()
+                .exit_code,
+            2
+        );
     }
 
     /// @covers: dispatch
     #[test]
     fn test_dispatch_returns_0_for_help() {
-        assert_eq!(BrowseClient.dispatch(request(&["help"])).unwrap().exit_code, 0);
+        assert_eq!(
+            BrowseClient.dispatch(request(&["help"])).unwrap().exit_code,
+            0
+        );
     }
 
     /// @covers: dispatch
     #[test]
     fn test_dispatch_returns_0_for_version() {
-        assert_eq!(BrowseClient.dispatch(request(&["version"])).unwrap().exit_code, 0);
+        assert_eq!(
+            BrowseClient
+                .dispatch(request(&["version"]))
+                .unwrap()
+                .exit_code,
+            0
+        );
     }
 
     /// @covers: dispatch

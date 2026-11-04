@@ -100,7 +100,7 @@ impl PlatformBrowserLocator {
         while Instant::now() < deadline {
             match Self::get_ws_url(port) {
                 Ok(url) => return Ok(url),
-                Err(e)  => last_err = e,
+                Err(e) => last_err = e,
             }
             std::thread::sleep(Duration::from_millis(200));
         }
@@ -114,9 +114,7 @@ mod tests {
 
     #[test]
     fn test_wait_for_debugger_fails_when_no_browser_on_port() {
-        let result = PlatformBrowserLocator::wait_with_timeout(
-            19996, Duration::from_secs(1)
-        );
+        let result = PlatformBrowserLocator::wait_with_timeout(19996, Duration::from_secs(1));
         assert!(result.is_err(), "should fail when no browser is listening");
     }
 }

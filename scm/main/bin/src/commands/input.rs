@@ -26,12 +26,14 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         }
         i += 1;
     }
-    let selector = selector.ok_or_else(|| CliError::InvalidArgs("--selector is required".to_string()))?;
+    let selector =
+        selector.ok_or_else(|| CliError::InvalidArgs("--selector is required".to_string()))?;
     let text = text.ok_or_else(|| CliError::InvalidArgs("--text is required".to_string()))?;
 
     let client = attach(port)?;
 
-    let selector_json = serde_json::to_string(&selector).map_err(|e| CliError::InvalidArgs(e.to_string()))?;
+    let selector_json =
+        serde_json::to_string(&selector).map_err(|e| CliError::InvalidArgs(e.to_string()))?;
     let focused = client
         .evaluate(&format!(
             "(function() {{ \
@@ -46,7 +48,10 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         ))
         .map_err(CliError::ExecutionFailed)?;
     if focused != "yes" {
-        return Err(CliError::ExecutionFailed(format!("element not found: {}", selector)));
+        return Err(CliError::ExecutionFailed(format!(
+            "element not found: {}",
+            selector
+        )));
     }
 
     client

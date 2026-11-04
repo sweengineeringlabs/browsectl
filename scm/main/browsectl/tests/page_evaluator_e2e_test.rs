@@ -82,7 +82,10 @@ fn test_page_evaluator_evaluate_awaits_delayed_promise() {
             "new Promise(function(resolve) { setTimeout(function() { resolve('resolved-value'); }, 200); })",
         )
         .unwrap();
-    assert_eq!(result, "resolved-value", "evaluate must await the promise and return its resolved value");
+    assert_eq!(
+        result, "resolved-value",
+        "evaluate must await the promise and return its resolved value"
+    );
 }
 
 /// @covers: evaluate
@@ -93,7 +96,11 @@ fn test_page_evaluator_evaluate_rejected_promise_returns_err() {
     let err = c
         .evaluate("Promise.reject(new Error('rejected-value'))")
         .expect_err("a rejected promise must surface as an error, not a silent empty result");
-    assert!(err.contains("rejected-value"), "error must include the rejection reason, got: {}", err);
+    assert!(
+        err.contains("rejected-value"),
+        "error must include the rejection reason, got: {}",
+        err
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -109,13 +116,17 @@ fn test_get_computed_style_finds_element_inside_open_shadow_root() {
     // all — confirms the fixture actually exercises shadow piercing, not a
     // light-DOM element that would pass even without the fix.
     assert_eq!(
-        c.evaluate("document.querySelector('.shadow-box') === null ? 'blind' : 'sees-it'").unwrap(),
+        c.evaluate("document.querySelector('.shadow-box') === null ? 'blind' : 'sees-it'")
+            .unwrap(),
         "blind",
         "fixture setup: plain querySelector must NOT see into the shadow root"
     );
 
     let display = c.get_computed_style(".shadow-box", "display").unwrap();
-    assert_eq!(display, "block", "get_computed_style must pierce into the open shadow root");
+    assert_eq!(
+        display, "block",
+        "get_computed_style must pierce into the open shadow root"
+    );
 }
 
 /// @covers: get_bounding_rect
@@ -124,7 +135,10 @@ fn test_get_computed_style_finds_element_inside_open_shadow_root() {
 fn test_get_bounding_rect_finds_element_inside_open_shadow_root() {
     let c = CdpClient::launch(shadow_fixture_url()).unwrap();
     let r = c.get_bounding_rect(".shadow-box").unwrap();
-    assert!(r.width > 0.0 && r.height > 0.0, "must resolve real dimensions for a shadow-rooted element");
+    assert!(
+        r.width > 0.0 && r.height > 0.0,
+        "must resolve real dimensions for a shadow-rooted element"
+    );
 }
 
 /// @covers: get_pseudo_style
@@ -134,7 +148,9 @@ fn test_get_pseudo_style_finds_element_inside_open_shadow_root() {
     let c = CdpClient::launch(shadow_fixture_url()).unwrap();
     // `::first-letter` always resolves to *some* display value for a block
     // element — this only proves the element itself was found via piercing.
-    let display = c.get_pseudo_style(".shadow-box", "::first-letter", "display").unwrap();
+    let display = c
+        .get_pseudo_style(".shadow-box", "::first-letter", "display")
+        .unwrap();
     assert!(!display.is_empty());
 }
 

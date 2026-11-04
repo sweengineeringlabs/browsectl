@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 
 use tungstenite::{stream::MaybeTlsStream, Message, WebSocket};
 
-use crate::api::{CdpClient, PageEvaluator};
 use crate::api::browser::BrowserLocator;
+use crate::api::{CdpClient, PageEvaluator};
 use crate::core::browser::PlatformBrowserLocator;
 
 /// Ask the OS for a currently-unused TCP port instead of guessing from a
@@ -93,8 +93,8 @@ impl CdpClient {
         };
 
         let client = Self {
-            socket:         Mutex::new(socket),
-            next_id:        AtomicU64::new(1),
+            socket: Mutex::new(socket),
+            next_id: AtomicU64::new(1),
             chrome_process: Some(chrome_process),
             port,
             ws_url,
@@ -108,8 +108,8 @@ impl CdpClient {
         let ws_url = PlatformBrowserLocator::get_ws_url(port)?;
         let socket = connect_ws(&ws_url)?;
         Ok(Self {
-            socket:         Mutex::new(socket),
-            next_id:        AtomicU64::new(1),
+            socket: Mutex::new(socket),
+            next_id: AtomicU64::new(1),
             chrome_process: None,
             port,
             ws_url,
@@ -137,7 +137,11 @@ impl CdpClient {
     /// Send a raw CDP command and return the `result` field of the response.
     ///
     /// Useful for CDP methods not covered by [`PageEvaluator`].
-    pub fn send(&self, method: &str, params: serde_json::Value) -> Result<serde_json::Value, String> {
+    pub fn send(
+        &self,
+        method: &str,
+        params: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
         self.send_cdp(method, params)
     }
 
@@ -190,9 +194,15 @@ impl CdpClient {
         Ok(())
     }
 
-    fn send_cdp(&self, method: &str, params: serde_json::Value) -> Result<serde_json::Value, String> {
+    fn send_cdp(
+        &self,
+        method: &str,
+        params: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        let mut socket = self.socket.lock()
+        let mut socket = self
+            .socket
+            .lock()
             .map_err(|_| "socket lock poisoned".to_string())?;
         send_cdp_raw(&mut socket, id, method, params)
     }
@@ -212,9 +222,15 @@ impl CdpClient {
     /// silently discarded here rather than delivered to its actual caller.
     ///
     /// Returns an error if no matching event arrives within `timeout`.
-    pub fn wait_for_event(&self, method: &str, timeout: Duration) -> Result<serde_json::Value, String> {
+    pub fn wait_for_event(
+        &self,
+        method: &str,
+        timeout: Duration,
+    ) -> Result<serde_json::Value, String> {
         let deadline = Instant::now() + timeout;
-        let mut socket = self.socket.lock()
+        let mut socket = self
+            .socket
+            .lock()
             .map_err(|_| "socket lock poisoned".to_string())?;
         let result = wait_for_event_raw(&mut socket, method, deadline, timeout);
         // Always restore blocking mode, regardless of outcome, so a
@@ -280,12 +296,12 @@ impl PageEvaluator for CdpClient {
 
         let r = &result["result"];
         match r["type"].as_str() {
-            Some("undefined")                                         => Ok(String::new()),
-            Some("string")                                            => Ok(r["value"].as_str().unwrap_or("").to_string()),
-            Some("number")                                            => Ok(r["value"].to_string()),
-            Some("boolean")                                           => Ok(r["value"].to_string()),
-            Some("object") if r["subtype"].as_str() == Some("null")  => Ok(String::new()),
-            _                                                         => Ok(r["description"].as_str().unwrap_or("").to_string()),
+            Some("undefined") => Ok(String::new()),
+            Some("string") => Ok(r["value"].as_str().unwrap_or("").to_string()),
+            Some("number") => Ok(r["value"].to_string()),
+            Some("boolean") => Ok(r["value"].to_string()),
+            Some("object") if r["subtype"].as_str() == Some("null") => Ok(String::new()),
+            _ => Ok(r["description"].as_str().unwrap_or("").to_string()),
         }
     }
 
@@ -342,7 +358,7 @@ fn connect_ws(ws_url: &str) -> Result<WebSocket<MaybeTlsStream<TcpStream>>, Stri
 
 fn send_cdp_raw(
     socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
-    id:     u64,
+    id: u64,
     method: &str,
     params: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
@@ -352,7 +368,10 @@ fn send_cdp_raw(
         .map_err(|e| format!("CDP send '{}' failed: {}", method, e))?;
 
     loop {
-        match socket.read().map_err(|e| format!("CDP read failed: {}", e))? {
+        match socket
+            .read()
+            .map_err(|e| format!("CDP read failed: {}", e))?
+        {
             Message::Text(text) => {
                 let val: serde_json::Value = serde_json::from_str(&text)
                     .map_err(|e| format!("CDP response parse error: {}", e))?;
@@ -364,7 +383,8 @@ fn send_cdp_raw(
                 }
             }
             Message::Ping(data) => {
-                socket.send(Message::Pong(data))
+                socket
+                    .send(Message::Pong(data))
                     .map_err(|e| format!("CDP pong failed: {}", e))?;
             }
             Message::Close(_) => return Err("CDP connection closed unexpectedly".into()),
@@ -374,24 +394,35 @@ fn send_cdp_raw(
 }
 
 fn wait_for_event_raw(
-    socket:   &mut WebSocket<MaybeTlsStream<TcpStream>>,
-    method:   &str,
+    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+    method: &str,
     deadline: Instant,
-    timeout:  Duration,
+    timeout: Duration,
 ) -> Result<serde_json::Value, String> {
     loop {
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
-            return Err(format!("timed out waiting for '{}' event after {:?}", method, timeout));
+            return Err(format!(
+                "timed out waiting for '{}' event after {:?}",
+                method, timeout
+            ));
         }
         set_read_timeout(socket, Some(remaining))?;
 
         let msg = match socket.read() {
             Ok(m) => m,
             Err(tungstenite::Error::Io(e)) if is_timeout_error(&e) => {
-                return Err(format!("timed out waiting for '{}' event after {:?}", method, timeout));
+                return Err(format!(
+                    "timed out waiting for '{}' event after {:?}",
+                    method, timeout
+                ));
             }
-            Err(e) => return Err(format!("CDP read failed while waiting for '{}': {}", method, e)),
+            Err(e) => {
+                return Err(format!(
+                    "CDP read failed while waiting for '{}': {}",
+                    method, e
+                ))
+            }
         };
 
         match msg {
@@ -405,7 +436,8 @@ fn wait_for_event_raw(
                 // we're not waiting for right now — discard and keep going.
             }
             Message::Ping(data) => {
-                socket.send(Message::Pong(data))
+                socket
+                    .send(Message::Pong(data))
                     .map_err(|e| format!("CDP pong failed: {}", e))?;
             }
             Message::Close(_) => return Err("CDP connection closed unexpectedly".into()),
@@ -415,7 +447,10 @@ fn wait_for_event_raw(
 }
 
 fn is_timeout_error(e: &std::io::Error) -> bool {
-    matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut)
+    matches!(
+        e.kind(),
+        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+    )
 }
 
 /// Set (or clear, with `None`) the underlying socket's read timeout.
@@ -423,7 +458,7 @@ fn is_timeout_error(e: &std::io::Error) -> bool {
 /// construct (`tungstenite` is compiled with no TLS backend — CDP is
 /// always a local `ws://` connection, never `wss://`).
 fn set_read_timeout(
-    socket:  &WebSocket<MaybeTlsStream<TcpStream>>,
+    socket: &WebSocket<MaybeTlsStream<TcpStream>>,
     timeout: Option<Duration>,
 ) -> Result<(), String> {
     match socket.get_ref() {
@@ -442,15 +477,19 @@ fn set_read_timeout(
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::api::CdpClient;
     use crate::api::browser::BrowserLocator;
+    use crate::api::CdpClient;
     use crate::core::browser::PlatformBrowserLocator;
 
     #[test]
     fn test_resolve_existing_absolute_path_fails_for_missing_file() {
         let err = resolve_existing_absolute_path("this-file-does-not-exist-anywhere.tmp")
             .expect_err("a nonexistent path must be rejected");
-        assert!(err.contains("this-file-does-not-exist-anywhere.tmp"), "error must name the exact path: {}", err);
+        assert!(
+            err.contains("this-file-does-not-exist-anywhere.tmp"),
+            "error must name the exact path: {}",
+            err
+        );
     }
 
     // Note: relative-path resolution (joining against the process's current
@@ -463,7 +502,8 @@ mod tests {
 
     #[test]
     fn test_resolve_existing_absolute_path_leaves_an_already_absolute_path_unchanged_in_meaning() {
-        let dir = std::env::temp_dir().join(format!("browsectl_client_test_abs_{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("browsectl_client_test_abs_{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("setup: temp dir must be creatable");
         let file = dir.join("abs.txt");
         std::fs::write(&file, b"x").expect("setup: file must be writable");
@@ -487,7 +527,10 @@ mod tests {
         assert!(port > 0);
         // The port must actually be free immediately after being picked.
         let listener = TcpListener::bind(("127.0.0.1", port));
-        assert!(listener.is_ok(), "port {port} should be bindable right after being picked");
+        assert!(
+            listener.is_ok(),
+            "port {port} should be bindable right after being picked"
+        );
     }
 
     /// @covers: pick_free_port
@@ -503,7 +546,11 @@ mod tests {
         let handles: Vec<_> = (0..8).map(|_| thread::spawn(pick_free_port)).collect();
         let ports: Vec<u16> = handles
             .into_iter()
-            .map(|h| h.join().expect("thread panicked").expect("should find a free port"))
+            .map(|h| {
+                h.join()
+                    .expect("thread panicked")
+                    .expect("should find a free port")
+            })
             .collect();
         let mut unique = ports.clone();
         unique.sort_unstable();
@@ -550,7 +597,8 @@ mod tests {
         let mut c = CdpClient::launch("data:text/html,<p>start</p>").unwrap();
         c.navigate("data:text/html,<p id=x>navigated</p>").unwrap();
         assert_eq!(
-            c.evaluate("document.getElementById('x') !== null ? 'yes' : 'no'").unwrap(),
+            c.evaluate("document.getElementById('x') !== null ? 'yes' : 'no'")
+                .unwrap(),
             "yes"
         );
     }
@@ -566,7 +614,8 @@ mod tests {
         );
         assert!(result.is_ok(), "send must succeed when browser is running");
         assert_eq!(
-            result.unwrap()["result"]["value"], 1,
+            result.unwrap()["result"]["value"],
+            1,
             "send must return the CDP response containing the evaluated value, not just any Ok"
         );
     }
@@ -596,6 +645,9 @@ mod tests {
     #[ignore = "requires a running Chromium instance"]
     fn test_ws_url_returns_websocket_url() {
         let c = CdpClient::launch("data:text/html,<h1>test</h1>").unwrap();
-        assert!(c.ws_url().starts_with("ws://"), "ws_url must be a WebSocket URL");
+        assert!(
+            c.ws_url().starts_with("ws://"),
+            "ws_url must be a WebSocket URL"
+        );
     }
 }

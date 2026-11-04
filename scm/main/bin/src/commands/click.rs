@@ -22,7 +22,8 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         i += 1;
     }
 
-    let selector = selector.ok_or_else(|| CliError::InvalidArgs("--selector is required".to_string()))?;
+    let selector =
+        selector.ok_or_else(|| CliError::InvalidArgs("--selector is required".to_string()))?;
 
     let client = attach(port)?;
 

@@ -15,10 +15,28 @@ fn test_help_lists_every_subcommand() {
     assert!(output.status.success(), "help must exit 0");
     let stderr = String::from_utf8_lossy(&output.stderr);
     for subcommand in [
-        "launch", "eval", "screenshot", "navigate", "wait", "click", "input", "set-files",
-        "get-dom", "metrics", "stop", "reap", "mock", "version", "help",
+        "launch",
+        "eval",
+        "screenshot",
+        "navigate",
+        "wait",
+        "click",
+        "input",
+        "set-files",
+        "get-dom",
+        "metrics",
+        "stop",
+        "reap",
+        "mock",
+        "version",
+        "help",
     ] {
-        assert!(stderr.contains(subcommand), "help output must list '{}', got:\n{}", subcommand, stderr);
+        assert!(
+            stderr.contains(subcommand),
+            "help output must list '{}', got:\n{}",
+            subcommand,
+            stderr
+        );
     }
     assert!(
         !stderr.to_lowercase().contains("chromiumctl"),
@@ -31,7 +49,11 @@ fn test_help_lists_every_subcommand() {
 #[test]
 fn test_no_args_prints_help_and_exits_2() {
     let output = cli().output().unwrap();
-    assert_eq!(output.status.code(), Some(2), "no subcommand at all must exit 2, same as an unknown command");
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "no subcommand at all must exit 2, same as an unknown command"
+    );
     assert!(
         String::from_utf8_lossy(&output.stderr).contains("USAGE"),
         "running with no arguments must print the same help text as `help`"
@@ -49,7 +71,11 @@ fn test_version_prints_the_crate_version() {
         "version output must contain the actual crate version, got: {}",
         stdout
     );
-    assert!(stdout.contains("browsectl"), "version output must name the browsectl crate, got: {}", stdout);
+    assert!(
+        stdout.contains("browsectl"),
+        "version output must name the browsectl crate, got: {}",
+        stdout
+    );
 }
 
 /// @covers: version

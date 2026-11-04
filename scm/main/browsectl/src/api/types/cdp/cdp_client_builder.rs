@@ -2,15 +2,19 @@
 ///
 /// [`CdpClient`]: super::CdpClient
 pub struct CdpClientBuilder {
-    url:        String,
+    url: String,
     chrome_bin: Option<String>,
-    port:       Option<u16>,
+    port: Option<u16>,
 }
 
 impl CdpClientBuilder {
     /// Start building a client that will open `url` after launch.
     pub fn new(url: impl Into<String>) -> Self {
-        Self { url: url.into(), chrome_bin: None, port: None }
+        Self {
+            url: url.into(),
+            chrome_bin: None,
+            port: None,
+        }
     }
 
     /// Override the browser binary path instead of using auto-discovery.

@@ -55,7 +55,12 @@ mod tests {
     }
 
     fn sample_record() -> SessionRecord {
-        SessionRecord { port: 9222, launched_at: 1_752_700_000, caller_pid: 4242, caller_start_time: None }
+        SessionRecord {
+            port: 9222,
+            launched_at: 1_752_700_000,
+            caller_pid: 4242,
+            caller_start_time: None,
+        }
     }
 
     /// @covers: write
@@ -69,7 +74,10 @@ mod tests {
             delete: unreachable_delete,
             list: unreachable_list,
         };
-        repo.write(WriteSessionRequest { record: sample_record() }).unwrap();
+        repo.write(WriteSessionRequest {
+            record: sample_record(),
+        })
+        .unwrap();
     }
 
     /// @covers: write
@@ -80,7 +88,11 @@ mod tests {
             delete: unreachable_delete,
             list: unreachable_list,
         };
-        let err = repo.write(WriteSessionRequest { record: sample_record() }).unwrap_err();
+        let err = repo
+            .write(WriteSessionRequest {
+                record: sample_record(),
+            })
+            .unwrap_err();
         assert_eq!(err.to_string(), "disk full");
     }
 
@@ -95,7 +107,10 @@ mod tests {
             delete: unreachable_delete,
             list: unreachable_list,
         };
-        repo.write(WriteSessionRequest { record: sample_record() }).unwrap();
+        repo.write(WriteSessionRequest {
+            record: sample_record(),
+        })
+        .unwrap();
     }
 
     /// @covers: delete
@@ -120,14 +135,20 @@ mod tests {
             delete: |_| Err(SessionError("permission denied".to_string())),
             list: unreachable_list,
         };
-        let err = repo.delete(DeleteSessionRequest { port: 9222 }).unwrap_err();
+        let err = repo
+            .delete(DeleteSessionRequest { port: 9222 })
+            .unwrap_err();
         assert_eq!(err.to_string(), "permission denied");
     }
 
     /// @covers: delete
     #[test]
     fn test_delete_of_a_nonexistent_port_is_not_an_error_edge() {
-        let repo = FakeSessionRepository { write: unreachable_write, delete: |_| Ok(()), list: unreachable_list };
+        let repo = FakeSessionRepository {
+            write: unreachable_write,
+            delete: |_| Ok(()),
+            list: unreachable_list,
+        };
         repo.delete(DeleteSessionRequest { port: 0 }).unwrap();
     }
 
@@ -137,7 +158,11 @@ mod tests {
         let repo = FakeSessionRepository {
             write: unreachable_write,
             delete: unreachable_delete,
-            list: |_| Ok(ListSessionsResponse { records: vec![sample_record()] }),
+            list: |_| {
+                Ok(ListSessionsResponse {
+                    records: vec![sample_record()],
+                })
+            },
         };
         let response = repo.list(ListSessionsRequest).unwrap();
         assert_eq!(response.records, vec![sample_record()]);

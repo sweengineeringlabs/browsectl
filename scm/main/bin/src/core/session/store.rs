@@ -34,7 +34,9 @@ impl SessionRepository for SessionStore {
     /// write from a crashed `launch` shouldn't block `reap` from cleaning up
     /// everything else.
     fn list(&self, _request: ListSessionsRequest) -> Result<ListSessionsResponse, SessionError> {
-        Ok(ListSessionsResponse { records: Self::list_in(&Self::base_dir()) })
+        Ok(ListSessionsResponse {
+            records: Self::list_in(&Self::base_dir()),
+        })
     }
 }
 
@@ -61,8 +63,13 @@ impl SessionStore {
     }
 
     fn write_in(dir: &Path, record: &SessionRecord) -> Result<(), SessionError> {
-        fs::create_dir_all(dir)
-            .map_err(|e| SessionError(format!("failed to create session dir '{}': {}", dir.display(), e)))?;
+        fs::create_dir_all(dir).map_err(|e| {
+            SessionError(format!(
+                "failed to create session dir '{}': {}",
+                dir.display(),
+                e
+            ))
+        })?;
 
         let body = serde_json::to_string_pretty(record)
             .map_err(|e| SessionError(format!("failed to serialize session record: {}", e)))?;
@@ -70,8 +77,9 @@ impl SessionStore {
         // Unique per-writer temp name so concurrent `launch`es never clobber
         // each other's in-flight temp file before the atomic rename.
         let tmp_path = dir.join(format!("{}.json.tmp-{}", record.port, std::process::id()));
-        fs::write(&tmp_path, &body)
-            .map_err(|e| SessionError(format!("failed to write '{}': {}", tmp_path.display(), e)))?;
+        fs::write(&tmp_path, &body).map_err(|e| {
+            SessionError(format!("failed to write '{}': {}", tmp_path.display(), e))
+        })?;
 
         let final_path = Self::path_for(dir, record.port);
         fs::rename(&tmp_path, &final_path).map_err(|e| {
@@ -150,7 +158,11 @@ mod tests {
             .filter_map(|e| e.ok())
             .map(|e| e.file_name().to_string_lossy().into_owned())
             .collect();
-        assert_eq!(names, vec!["9402.json".to_string()], "only the final file should remain");
+        assert_eq!(
+            names,
+            vec!["9402.json".to_string()],
+            "only the final file should remain"
+        );
     }
 
     #[test]
@@ -191,7 +203,8 @@ mod tests {
     fn test_list_in_skips_corrupt_entries_but_returns_the_rest() {
         let dir = unique_test_dir("skip_corrupt");
         SessionStore::write_in(&dir, &sample_record(9406)).expect("write must succeed");
-        fs::write(dir.join("not-json.json"), "{ this is not valid json").expect("setup write must succeed");
+        fs::write(dir.join("not-json.json"), "{ this is not valid json")
+            .expect("setup write must succeed");
 
         let records = SessionStore::list_in(&dir);
         assert_eq!(records, vec![sample_record(9406)]);
@@ -210,7 +223,13 @@ mod tests {
         let dir = unique_test_dir("trait_write");
         std::env::set_var("BROWSECTL_SESSION_DIR", &dir);
         let record = sample_record(9407);
-        SessionRepository::write(&SessionStore, WriteSessionRequest { record: record.clone() }).unwrap();
+        SessionRepository::write(
+            &SessionStore,
+            WriteSessionRequest {
+                record: record.clone(),
+            },
+        )
+        .unwrap();
         let response = SessionRepository::list(&SessionStore, ListSessionsRequest).unwrap();
         assert_eq!(response.records, vec![record]);
         std::env::remove_var("BROWSECTL_SESSION_DIR");
@@ -223,7 +242,13 @@ mod tests {
         let dir = unique_test_dir("trait_delete");
         std::env::set_var("BROWSECTL_SESSION_DIR", &dir);
         let record = sample_record(9408);
-        SessionRepository::write(&SessionStore, WriteSessionRequest { record: record.clone() }).unwrap();
+        SessionRepository::write(
+            &SessionStore,
+            WriteSessionRequest {
+                record: record.clone(),
+            },
+        )
+        .unwrap();
         SessionRepository::delete(&SessionStore, DeleteSessionRequest { port: 9408 }).unwrap();
         let response = SessionRepository::list(&SessionStore, ListSessionsRequest).unwrap();
         assert!(response.records.is_empty());

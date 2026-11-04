@@ -29,7 +29,9 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
     let script = script.ok_or_else(|| CliError::InvalidArgs("--script is required".to_string()))?;
 
     let client = attach(port)?;
-    let result = client.evaluate(&script).map_err(CliError::ExecutionFailed)?;
+    let result = client
+        .evaluate(&script)
+        .map_err(CliError::ExecutionFailed)?;
 
     match output_format.as_str() {
         "json" => {

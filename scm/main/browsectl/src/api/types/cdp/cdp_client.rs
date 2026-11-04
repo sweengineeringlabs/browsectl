@@ -20,9 +20,9 @@ use tungstenite::{stream::MaybeTlsStream, WebSocket};
 /// println!("{}", title);
 /// ```
 pub struct CdpClient {
-    pub(crate) socket:         Mutex<WebSocket<MaybeTlsStream<TcpStream>>>,
-    pub(crate) next_id:        AtomicU64,
+    pub(crate) socket: Mutex<WebSocket<MaybeTlsStream<TcpStream>>>,
+    pub(crate) next_id: AtomicU64,
     pub(crate) chrome_process: Option<Child>,
-    pub(crate) port:           u16,
-    pub(crate) ws_url:         String,
+    pub(crate) port: u16,
+    pub(crate) ws_url: String,
 }

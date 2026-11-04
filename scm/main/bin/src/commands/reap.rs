@@ -1,4 +1,6 @@
-use crate::api::session::{DeleteSessionRequest, ListSessionsRequest, SessionRecord, SessionRepository};
+use crate::api::session::{
+    DeleteSessionRequest, ListSessionsRequest, SessionRecord, SessionRepository,
+};
 use crate::core::os_process::ProcessLocator;
 use crate::core::session::SessionStore;
 
@@ -35,7 +37,10 @@ pub(crate) fn print_outcomes(reaped: &[ReapOutcome], dry_run: bool) {
     }
     let verb = if dry_run { "Would reap" } else { "Reaped" };
     for outcome in reaped {
-        println!("{} session on port {} ({})", verb, outcome.record.port, outcome.reason);
+        println!(
+            "{} session on port {} ({})",
+            verb, outcome.record.port, outcome.reason
+        );
     }
     println!(
         "{} {} session(s).",
@@ -204,7 +209,11 @@ mod tests {
             caller_start_time: None,
         };
         let reason = classify(&record, Some(60)).expect("must be reaped once past max_age");
-        assert!(reason.contains("--max-age"), "reason should explain why: {}", reason);
+        assert!(
+            reason.contains("--max-age"),
+            "reason should explain why: {}",
+            reason
+        );
     }
 
     #[test]
@@ -228,7 +237,10 @@ mod tests {
     #[test]
     fn test_execute_rejects_invalid_max_age_value() {
         let result = execute(&["--max-age".to_string(), "notanumber".to_string()]);
-        assert!(result.is_err(), "a non-numeric --max-age must be rejected before reaping anything");
+        assert!(
+            result.is_err(),
+            "a non-numeric --max-age must be rejected before reaping anything"
+        );
     }
 
     #[test]
@@ -246,7 +258,10 @@ mod tests {
         let alive = caller_is_alive(&record);
         let real_fingerprint = ProcessLocator::start_time_fingerprint(std::process::id());
         if real_fingerprint.is_some() {
-            assert!(!alive, "a mismatched fingerprint must not be treated as the same caller");
+            assert!(
+                !alive,
+                "a mismatched fingerprint must not be treated as the same caller"
+            );
         }
     }
 }

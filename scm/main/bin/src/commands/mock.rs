@@ -37,8 +37,8 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         }
         i += 1;
     }
-    let url_pattern =
-        url_pattern.ok_or_else(|| CliError::InvalidArgs("--url-pattern is required".to_string()))?;
+    let url_pattern = url_pattern
+        .ok_or_else(|| CliError::InvalidArgs("--url-pattern is required".to_string()))?;
 
     let client = attach(port)?;
 
@@ -59,7 +59,10 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         status,
         body.len()
     );
-    println!("Blocking until interrupted (Ctrl-C) or {:?} of inactivity.", REQUEST_WAIT_TIMEOUT);
+    println!(
+        "Blocking until interrupted (Ctrl-C) or {:?} of inactivity.",
+        REQUEST_WAIT_TIMEOUT
+    );
 
     let body_b64 = data_encoding::BASE64.encode(body.as_bytes());
 

@@ -49,7 +49,9 @@ fn test_cdp_client_attach_reuses_session() {
 fn test_cdp_client_navigate_loads_new_content() {
     let mut c = CdpClient::launch(&fixture_url()).unwrap();
     c.navigate("data:text/html,<p id=y>world</p>").unwrap();
-    let found = c.evaluate("document.getElementById('y') !== null ? 'yes' : 'no'").unwrap();
+    let found = c
+        .evaluate("document.getElementById('y') !== null ? 'yes' : 'no'")
+        .unwrap();
     assert_eq!(found, "yes");
 }
 
