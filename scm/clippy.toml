@@ -1,0 +1,4 @@
+# The workspace lints unwrap/expect (see [workspace.lints.clippy]) so production
+# code must handle errors; tests may unwrap, which is how they assert.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
