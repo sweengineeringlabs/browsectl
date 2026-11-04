@@ -70,7 +70,9 @@ fn test_evaluate_undefined_returns_empty() {
 #[ignore]
 fn test_evaluate_dom_element_found() {
     let c = CdpClient::launch(&fixture_url()).unwrap();
-    let r = c.evaluate("document.querySelector('.btn--primary') !== null ? 'found' : 'missing'").unwrap();
+    let r = c
+        .evaluate("document.querySelector('.btn--primary') !== null ? 'found' : 'missing'")
+        .unwrap();
     assert_eq!(r, "found");
 }
 
@@ -82,7 +84,10 @@ fn test_evaluate_dom_element_found() {
 #[ignore]
 fn test_computed_style_reads_display() {
     let c = CdpClient::launch(&fixture_url()).unwrap();
-    assert_eq!(c.get_computed_style(".btn", "display").unwrap(), "inline-flex");
+    assert_eq!(
+        c.get_computed_style(".btn", "display").unwrap(),
+        "inline-flex"
+    );
 }
 
 #[test]
@@ -144,14 +149,17 @@ fn test_set_viewport_width_changes_actual_viewport() {
 fn test_viewport_width_affects_media_queries() {
     let c = CdpClient::launch(&fixture_url()).unwrap();
 
-    c.evaluate(r#"
+    c.evaluate(
+        r#"
         var s = document.createElement('style');
         s.textContent = '.mq { color: red; } @media (min-width: 768px) { .mq { color: blue; } }';
         document.head.appendChild(s);
         var el = document.createElement('div');
         el.className = 'mq';
         document.body.appendChild(el);
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
 
     c.set_viewport_width(375).unwrap();
     let _ = c.evaluate("document.body.offsetHeight");
@@ -161,7 +169,10 @@ fn test_viewport_width_affects_media_queries() {
     let _ = c.evaluate("document.body.offsetHeight");
     let wide = c.get_computed_style(".mq", "color").unwrap();
 
-    assert_ne!(narrow, wide, "color should differ across breakpoint: narrow={narrow} wide={wide}");
+    assert_ne!(
+        narrow, wide,
+        "color should differ across breakpoint: narrow={narrow} wide={wide}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -173,8 +184,11 @@ fn test_viewport_width_affects_media_queries() {
 #[ignore]
 fn test_navigate_changes_page_content() {
     let mut c = CdpClient::launch(&fixture_url()).unwrap();
-    c.navigate("data:text/html,<h1 id=marker>navigated</h1>").unwrap();
-    let found = c.evaluate("document.getElementById('marker') !== null ? 'yes' : 'no'").unwrap();
+    c.navigate("data:text/html,<h1 id=marker>navigated</h1>")
+        .unwrap();
+    let found = c
+        .evaluate("document.getElementById('marker') !== null ? 'yes' : 'no'")
+        .unwrap();
     assert_eq!(found, "yes");
 }
 
@@ -210,7 +224,10 @@ fn test_attach_to_existing_browser() {
 #[ignore]
 fn test_ws_url_is_websocket_url() {
     let c = CdpClient::launch(&fixture_url()).unwrap();
-    assert!(c.ws_url().starts_with("ws://"), "ws_url must start with ws://");
+    assert!(
+        c.ws_url().starts_with("ws://"),
+        "ws_url must start with ws://"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -229,12 +246,20 @@ fn test_wait_for_event_returns_params_of_a_real_event() {
     // so trigger the navigation directly over CDP instead, to leave the
     // real `Page.loadEventFired` event unconsumed for `wait_for_event` to
     // actually receive.
-    c.send("Page.navigate", serde_json::json!({ "url": "data:text/html,<h1>done</h1>" })).unwrap();
+    c.send(
+        "Page.navigate",
+        serde_json::json!({ "url": "data:text/html,<h1>done</h1>" }),
+    )
+    .unwrap();
 
     let params = c
         .wait_for_event("Page.loadEventFired", std::time::Duration::from_secs(10))
         .expect("a real Page.loadEventFired event must be received");
-    assert!(params.is_object(), "event params must be a JSON object, got: {}", params);
+    assert!(
+        params.is_object(),
+        "event params must be a JSON object, got: {}",
+        params
+    );
 }
 
 /// @covers: wait_for_event
@@ -243,9 +268,16 @@ fn test_wait_for_event_returns_params_of_a_real_event() {
 fn test_wait_for_event_times_out_when_event_never_arrives() {
     let c = CdpClient::launch(&fixture_url()).unwrap();
     let err = c
-        .wait_for_event("Totally.FakeEventThatNeverFires", std::time::Duration::from_millis(500))
+        .wait_for_event(
+            "Totally.FakeEventThatNeverFires",
+            std::time::Duration::from_millis(500),
+        )
         .expect_err("must time out, not hang forever, when the event never arrives");
-    assert!(err.contains("timed out"), "error must say it timed out, got: {}", err);
+    assert!(
+        err.contains("timed out"),
+        "error must say it timed out, got: {}",
+        err
+    );
 }
 
 /// @covers: wait_for_event
@@ -253,7 +285,10 @@ fn test_wait_for_event_times_out_when_event_never_arrives() {
 #[ignore]
 fn test_wait_for_event_timeout_does_not_break_subsequent_send_calls() {
     let c = CdpClient::launch(&fixture_url()).unwrap();
-    let _ = c.wait_for_event("Totally.FakeEventThatNeverFires", std::time::Duration::from_millis(300));
+    let _ = c.wait_for_event(
+        "Totally.FakeEventThatNeverFires",
+        std::time::Duration::from_millis(300),
+    );
 
     // Regression check for the read-timeout restore: a timed-out
     // `wait_for_event` must not leave the socket's read timeout set to a
@@ -278,7 +313,11 @@ fn file_input_fixture_url() -> String {
 }
 
 fn unique_temp_file(name: &str) -> std::path::PathBuf {
-    std::env::temp_dir().join(format!("browsectl_client_e2e_{}_{}", std::process::id(), name))
+    std::env::temp_dir().join(format!(
+        "browsectl_client_e2e_{}_{}",
+        std::process::id(),
+        name
+    ))
 }
 
 /// @covers: set_files
@@ -291,11 +330,15 @@ fn test_set_files_sets_a_real_file_and_fires_change() {
     std::fs::write(&path, b"hello set_files").expect("setup: fixture file must be writable");
 
     let result = c.set_files("#file-input", &[path.to_string_lossy().into_owned()]);
-    assert!(result.is_ok(), "set_files must succeed for a real file and a real input element");
+    assert!(
+        result.is_ok(),
+        "set_files must succeed for a real file and a real input element"
+    );
 
     let name = path.file_name().unwrap().to_string_lossy().into_owned();
     assert_eq!(
-        c.evaluate("document.getElementById('result').textContent").unwrap(),
+        c.evaluate("document.getElementById('result').textContent")
+            .unwrap(),
         format!("{}:15", name),
         "the input's change handler must observe the real file's name and size — proves \
          DOM.setFileInputFiles actually ran, not just that set_files returned Ok"

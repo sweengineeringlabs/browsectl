@@ -84,7 +84,13 @@ mod tests {
     #[test]
     fn test_deep_query_selector_js_recurses_into_shadow_roots() {
         let js = deep_query_selector_js();
-        assert!(js.contains("shadowRoot"), "must actually descend into shadow roots, not just document");
-        assert!(js.contains("root.querySelector(selector)"), "must try a direct match before recursing");
+        assert!(
+            js.contains("shadowRoot"),
+            "must actually descend into shadow roots, not just document"
+        );
+        assert!(
+            js.contains("root.querySelector(selector)"),
+            "must try a direct match before recursing"
+        );
     }
 }

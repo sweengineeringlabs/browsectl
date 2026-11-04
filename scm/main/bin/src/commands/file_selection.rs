@@ -24,12 +24,15 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
         }
         i += 1;
     }
-    let selector = selector.ok_or_else(|| CliError::InvalidArgs("--selector is required".to_string()))?;
+    let selector =
+        selector.ok_or_else(|| CliError::InvalidArgs("--selector is required".to_string()))?;
     let files = files.ok_or_else(|| CliError::InvalidArgs("--files is required".to_string()))?;
     let file_paths = parse_file_list(&files)?;
 
     let client = attach(port)?;
-    client.set_files(&selector, &file_paths).map_err(CliError::ExecutionFailed)?;
+    client
+        .set_files(&selector, &file_paths)
+        .map_err(CliError::ExecutionFailed)?;
 
     println!("Set {} file(s) on {}", file_paths.len(), selector);
     Ok(())
@@ -44,7 +47,9 @@ fn parse_file_list(raw: &str) -> Result<Vec<String>, CliError> {
         .filter(|s| !s.is_empty())
         .collect();
     if paths.is_empty() {
-        return Err(CliError::InvalidArgs("--files must contain at least one path".to_string()));
+        return Err(CliError::InvalidArgs(
+            "--files must contain at least one path".to_string(),
+        ));
     }
     Ok(paths)
 }
@@ -72,7 +77,10 @@ mod tests {
 
     #[test]
     fn test_parse_file_list_accepts_a_single_path() {
-        assert_eq!(parse_file_list("only.png").unwrap(), vec!["only.png".to_string()]);
+        assert_eq!(
+            parse_file_list("only.png").unwrap(),
+            vec!["only.png".to_string()]
+        );
     }
 
     #[test]
@@ -94,16 +102,34 @@ mod tests {
     /// @covers: execute
     #[test]
     fn test_execute_rejects_missing_selector() {
-        let result = execute(&["--port".to_string(), "9222".to_string(), "--files".to_string(), "a.png".to_string()]);
+        let result = execute(&[
+            "--port".to_string(),
+            "9222".to_string(),
+            "--files".to_string(),
+            "a.png".to_string(),
+        ]);
         let err = result.expect_err("missing --selector must be rejected");
-        assert!(err.to_string().contains("--selector"), "error should name the missing flag: {}", err);
+        assert!(
+            err.to_string().contains("--selector"),
+            "error should name the missing flag: {}",
+            err
+        );
     }
 
     /// @covers: execute
     #[test]
     fn test_execute_rejects_missing_files() {
-        let result = execute(&["--port".to_string(), "9222".to_string(), "--selector".to_string(), "#f".to_string()]);
+        let result = execute(&[
+            "--port".to_string(),
+            "9222".to_string(),
+            "--selector".to_string(),
+            "#f".to_string(),
+        ]);
         let err = result.expect_err("missing --files must be rejected");
-        assert!(err.to_string().contains("--files"), "error should name the missing flag: {}", err);
+        assert!(
+            err.to_string().contains("--files"),
+            "error should name the missing flag: {}",
+            err
+        );
     }
 }

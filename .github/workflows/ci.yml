@@ -1,0 +1,44 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  toolchain-pins:
+    # Every job must build with the compiler the workspace declares. Fails fast
+    # (no build) if a workflow pin, rust-toolchain.toml and rust-version drift.
+    name: toolchain pins
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Workflow pins and rust-toolchain.toml equal the declared rust-version
+        run: |
+          declared="$(grep -m1 '^rust-version' scm/Cargo.toml | cut -d'"' -f2)"
+          channel="$(grep -m1 '^channel' scm/rust-toolchain.toml | cut -d'"' -f2)"
+          pins="$(grep -h -o -E 'uses: dtolnay/rust-toolchain@[0-9A-Za-z.]+' .github/workflows/*.yml | sed 's/^uses: //' | sort -u)"
+          echo "declared rust-version: $declared"
+          echo "rust-toolchain.toml channel: $channel"
+          echo "$pins"
+          [ -n "$declared" ] || { echo "rust-version not found" >&2; exit 1; }
+          [ "$channel" = "$declared" ] || { echo "rust-toolchain.toml ($channel) differs from rust-version ($declared)" >&2; exit 1; }
+          [ -n "$pins" ] || { echo "no toolchain pins found" >&2; exit 1; }
+          [ "$pins" = "dtolnay/rust-toolchain@$declared" ] || { echo "workflow toolchain pins differ from rust-version $declared" >&2; exit 1; }
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel, windows-2022]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: scm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.99.1
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      # Tests that need a live Chromium are #[ignore]d and do not run here.
+      - run: cargo test --workspace --locked

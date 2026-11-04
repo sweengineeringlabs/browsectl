@@ -18,7 +18,10 @@ impl Validator for AgeGuard {
 
 #[test]
 fn test_validator_returns_ok_for_valid_value() {
-    assert!(AgeGuard(25).validate().is_ok(), "a non-negative age must validate successfully");
+    assert!(
+        AgeGuard(25).validate().is_ok(),
+        "a non-negative age must validate successfully"
+    );
     assert!(
         AgeGuard(-25).validate().is_err(),
         "a negative age must still be rejected — proves this isn't a stub that always returns Ok"
@@ -28,12 +31,18 @@ fn test_validator_returns_ok_for_valid_value() {
 #[test]
 fn test_validator_returns_err_for_invalid_value() {
     let err = AgeGuard(-1).validate().unwrap_err();
-    assert!(err.contains("-1"), "error should mention the bad value: {err}");
+    assert!(
+        err.contains("-1"),
+        "error should mention the bad value: {err}"
+    );
 }
 
 #[test]
 fn test_validator_zero_is_valid() {
-    assert!(AgeGuard(0).validate().is_ok(), "zero is a valid (non-negative) age");
+    assert!(
+        AgeGuard(0).validate().is_ok(),
+        "zero is a valid (non-negative) age"
+    );
     assert!(
         AgeGuard(-1).validate().is_err(),
         "the boundary just below zero must still be rejected — proves this isn't a stub that always returns Ok"

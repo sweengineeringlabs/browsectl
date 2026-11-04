@@ -21,7 +21,11 @@ fn cli() -> Command {
 }
 
 fn unique_temp_file(name: &str) -> std::path::PathBuf {
-    std::env::temp_dir().join(format!("browsectl_cli_test_{}_{}", std::process::id(), name))
+    std::env::temp_dir().join(format!(
+        "browsectl_cli_test_{}_{}",
+        std::process::id(),
+        name
+    ))
 }
 
 /// A page with a button inside an *open* shadow root, wired to set
@@ -56,8 +60,10 @@ fn test_eval_prints_real_js_result() {
     let output = cli()
         .args([
             "eval",
-            "--port", &port.to_string(),
-            "--script", "document.getElementById('x').textContent",
+            "--port",
+            &port.to_string(),
+            "--script",
+            "document.getElementById('x').textContent",
         ])
         .output()
         .expect("failed to run browse eval");
@@ -83,11 +89,21 @@ fn test_eval_returns_exit_1_on_js_exception() {
         .expect("setup: launch must succeed");
 
     let output = cli()
-        .args(["eval", "--port", &port.to_string(), "--script", "throw new Error('boom')"])
+        .args([
+            "eval",
+            "--port",
+            &port.to_string(),
+            "--script",
+            "throw new Error('boom')",
+        ])
         .output()
         .expect("failed to run browse eval");
 
-    assert_eq!(output.status.code(), Some(1), "JS exceptions must exit 1 (execution failed)");
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "JS exceptions must exit 1 (execution failed)"
+    );
     drop(client);
 }
 
@@ -98,7 +114,11 @@ fn test_eval_returns_exit_4_when_no_browser_listening() {
         .args(["eval", "--port", "19998", "--script", "1"])
         .output()
         .expect("failed to run browse eval");
-    assert_eq!(output.status.code(), Some(4), "unreachable debugger must exit 4 (connection failed)");
+    assert_eq!(
+        output.status.code(),
+        Some(4),
+        "unreachable debugger must exit 4 (connection failed)"
+    );
 }
 
 /// @covers: eval
@@ -108,7 +128,11 @@ fn test_eval_returns_exit_2_when_script_missing() {
         .args(["eval", "--port", "9222"])
         .output()
         .expect("failed to run browse eval");
-    assert_eq!(output.status.code(), Some(2), "missing --script must exit 2 (invalid args)");
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "missing --script must exit 2 (invalid args)"
+    );
 }
 
 /// @covers: eval
@@ -122,14 +146,31 @@ fn test_eval_output_json_preserves_boolean_type() {
         .expect("setup: launch must succeed");
 
     let output = cli()
-        .args(["eval", "--port", &port.to_string(), "--script", "true", "--output", "json"])
+        .args([
+            "eval",
+            "--port",
+            &port.to_string(),
+            "--script",
+            "true",
+            "--output",
+            "json",
+        ])
         .output()
         .expect("failed to run browse eval");
 
-    assert!(output.status.success(), "eval must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "eval must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let parsed: serde_json::Value = serde_json::from_str(stdout.trim()).expect("stdout must be valid JSON");
-    assert_eq!(parsed["result"], serde_json::json!(true), "boolean result must be a native JSON boolean, not a string");
+    let parsed: serde_json::Value =
+        serde_json::from_str(stdout.trim()).expect("stdout must be valid JSON");
+    assert_eq!(
+        parsed["result"],
+        serde_json::json!(true),
+        "boolean result must be a native JSON boolean, not a string"
+    );
 
     drop(client);
 }
@@ -145,13 +186,26 @@ fn test_eval_output_json_wraps_non_json_string_as_string() {
         .expect("setup: launch must succeed");
 
     let output = cli()
-        .args(["eval", "--port", &port.to_string(), "--script", "'count:5'", "--output", "json"])
+        .args([
+            "eval",
+            "--port",
+            &port.to_string(),
+            "--script",
+            "'count:5'",
+            "--output",
+            "json",
+        ])
         .output()
         .expect("failed to run browse eval");
 
-    assert!(output.status.success(), "eval must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "eval must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let parsed: serde_json::Value = serde_json::from_str(stdout.trim()).expect("stdout must be valid JSON");
+    let parsed: serde_json::Value =
+        serde_json::from_str(stdout.trim()).expect("stdout must be valid JSON");
     assert_eq!(
         parsed["result"],
         serde_json::json!("count:5"),
@@ -212,15 +266,26 @@ fn test_navigate_changes_real_page_content() {
     let output = cli()
         .args([
             "navigate",
-            "--port", &port.to_string(),
-            "--url", "data:text/html,<p id=x>navigated</p>",
+            "--port",
+            &port.to_string(),
+            "--url",
+            "data:text/html,<p id=x>navigated</p>",
         ])
         .output()
         .expect("failed to run browse navigate");
 
-    assert!(output.status.success(), "navigate must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
-    let found = client.evaluate("document.getElementById('x') !== null ? 'yes' : 'no'").unwrap();
-    assert_eq!(found, "yes", "page content must reflect the real navigation");
+    assert!(
+        output.status.success(),
+        "navigate must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let found = client
+        .evaluate("document.getElementById('x') !== null ? 'yes' : 'no'")
+        .unwrap();
+    assert_eq!(
+        found, "yes",
+        "page content must reflect the real navigation"
+    );
 
     drop(client);
 }
@@ -247,11 +312,23 @@ fn test_wait_succeeds_when_selector_present() {
         .expect("setup: launch must succeed");
 
     let output = cli()
-        .args(["wait", "--port", &port.to_string(), "--selector", "#btn", "--timeout", "5"])
+        .args([
+            "wait",
+            "--port",
+            &port.to_string(),
+            "--selector",
+            "#btn",
+            "--timeout",
+            "5",
+        ])
         .output()
         .expect("failed to run browse wait");
 
-    assert!(output.status.success(), "wait must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "wait must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     drop(client);
 }
 
@@ -269,7 +346,15 @@ fn test_wait_selector_with_embedded_apostrophe_does_not_break() {
     // before shadow-piercing was wired in alongside it — this confirms
     // that pre-existing correctness wasn't disturbed by that change.
     let output = cli()
-        .args(["wait", "--port", &port.to_string(), "--selector", "[data-x='a']", "--timeout", "5"])
+        .args([
+            "wait",
+            "--port",
+            &port.to_string(),
+            "--selector",
+            "[data-x='a']",
+            "--timeout",
+            "5",
+        ])
         .output()
         .expect("failed to run browse wait");
 
@@ -292,11 +377,23 @@ fn test_wait_times_out_when_selector_absent() {
         .expect("setup: launch must succeed");
 
     let output = cli()
-        .args(["wait", "--port", &port.to_string(), "--selector", "#does-not-exist", "--timeout", "1"])
+        .args([
+            "wait",
+            "--port",
+            &port.to_string(),
+            "--selector",
+            "#does-not-exist",
+            "--timeout",
+            "1",
+        ])
         .output()
         .expect("failed to run browse wait");
 
-    assert_eq!(output.status.code(), Some(3), "an unmet condition must exit 3 (timeout)");
+    assert_eq!(
+        output.status.code(),
+        Some(3),
+        "an unmet condition must exit 3 (timeout)"
+    );
     drop(client);
 }
 
@@ -311,7 +408,14 @@ fn test_wait_succeeds_for_navigation_condition() {
         .expect("setup: launch must succeed");
 
     let output = cli()
-        .args(["wait", "--port", &port.to_string(), "--navigation", "--timeout", "5"])
+        .args([
+            "wait",
+            "--port",
+            &port.to_string(),
+            "--navigation",
+            "--timeout",
+            "5",
+        ])
         .output()
         .expect("failed to run browse wait");
 
@@ -327,7 +431,11 @@ fn test_wait_succeeds_for_navigation_condition() {
 #[test]
 fn test_wait_returns_exit_2_when_no_condition_given() {
     let output = cli().args(["wait", "--port", "9222"]).output().unwrap();
-    assert_eq!(output.status.code(), Some(2), "missing --selector/--text/--navigation must exit 2");
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "missing --selector/--text/--navigation must exit 2"
+    );
 }
 
 /// @covers: wait
@@ -341,7 +449,15 @@ fn test_wait_selector_finds_element_inside_open_shadow_root() {
         .expect("setup: launch must succeed");
 
     let output = cli()
-        .args(["wait", "--port", &port.to_string(), "--selector", "#shadow-btn", "--timeout", "5"])
+        .args([
+            "wait",
+            "--port",
+            &port.to_string(),
+            "--selector",
+            "#shadow-btn",
+            "--timeout",
+            "5",
+        ])
         .output()
         .expect("failed to run browse wait");
 
@@ -374,7 +490,11 @@ fn test_click_dispatches_real_mouse_event() {
         .output()
         .expect("failed to run browse click");
 
-    assert!(output.status.success(), "click must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "click must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert_eq!(client.evaluate("document.title").unwrap(), "clicked");
 
     drop(client);
@@ -393,13 +513,21 @@ fn test_click_dispatches_real_mouse_event_inside_open_shadow_root() {
     // Confirms the fixture actually exercises shadow piercing: a plain
     // querySelector must NOT see the button before `click` is even run.
     assert_eq!(
-        client.evaluate("document.querySelector('#shadow-btn') === null ? 'blind' : 'sees-it'").unwrap(),
+        client
+            .evaluate("document.querySelector('#shadow-btn') === null ? 'blind' : 'sees-it'")
+            .unwrap(),
         "blind",
         "fixture setup: plain querySelector must NOT see into the shadow root"
     );
 
     let output = cli()
-        .args(["click", "--port", &port.to_string(), "--selector", "#shadow-btn"])
+        .args([
+            "click",
+            "--port",
+            &port.to_string(),
+            "--selector",
+            "#shadow-btn",
+        ])
         .output()
         .expect("failed to run browse click");
 
@@ -424,7 +552,13 @@ fn test_click_returns_exit_1_when_selector_not_found() {
         .expect("setup: launch must succeed");
 
     let output = cli()
-        .args(["click", "--port", &port.to_string(), "--selector", "#does-not-exist"])
+        .args([
+            "click",
+            "--port",
+            &port.to_string(),
+            "--selector",
+            "#does-not-exist",
+        ])
         .output()
         .expect("failed to run browse click");
 
@@ -443,12 +577,29 @@ fn test_input_types_real_text_into_field() {
         .expect("setup: launch must succeed");
 
     let output = cli()
-        .args(["input", "--port", &port.to_string(), "--selector", "#box", "--text", "hello world"])
+        .args([
+            "input",
+            "--port",
+            &port.to_string(),
+            "--selector",
+            "#box",
+            "--text",
+            "hello world",
+        ])
         .output()
         .expect("failed to run browse input");
 
-    assert!(output.status.success(), "input must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
-    assert_eq!(client.evaluate("document.getElementById('box').value").unwrap(), "hello world");
+    assert!(
+        output.status.success(),
+        "input must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        client
+            .evaluate("document.getElementById('box').value")
+            .unwrap(),
+        "hello world"
+    );
 
     drop(client);
 }
@@ -467,7 +618,15 @@ fn test_input_selector_with_embedded_apostrophe_does_not_break() {
     // shadow-piercing was wired in alongside it — confirms that
     // pre-existing correctness wasn't disturbed by that change.
     let output = cli()
-        .args(["input", "--port", &port.to_string(), "--selector", "[data-x='a']", "--text", "ok"])
+        .args([
+            "input",
+            "--port",
+            &port.to_string(),
+            "--selector",
+            "[data-x='a']",
+            "--text",
+            "ok",
+        ])
         .output()
         .expect("failed to run browse input");
 
@@ -476,7 +635,12 @@ fn test_input_selector_with_embedded_apostrophe_does_not_break() {
         "a selector with a literal ' must not break input, stderr: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert_eq!(client.evaluate("document.getElementById('box').value").unwrap(), "ok");
+    assert_eq!(
+        client
+            .evaluate("document.getElementById('box').value")
+            .unwrap(),
+        "ok"
+    );
 
     drop(client);
 }
@@ -522,9 +686,12 @@ fn test_set_files_sets_a_real_file_and_fires_change() {
     let output = cli()
         .args([
             "set-files",
-            "--port", &port.to_string(),
-            "--selector", "#file-input",
-            "--files", path.to_str().expect("setup: path must be valid UTF-8"),
+            "--port",
+            &port.to_string(),
+            "--selector",
+            "#file-input",
+            "--files",
+            path.to_str().expect("setup: path must be valid UTF-8"),
         ])
         .output()
         .expect("failed to run browse set-files");
@@ -536,7 +703,9 @@ fn test_set_files_sets_a_real_file_and_fires_change() {
     );
 
     let expected_name = path.file_name().unwrap().to_str().unwrap();
-    let result = client.evaluate("document.getElementById('result').textContent").unwrap();
+    let result = client
+        .evaluate("document.getElementById('result').textContent")
+        .unwrap();
     assert_eq!(
         result,
         format!("{}:{}", expected_name, "hello set-files".len()),
@@ -568,7 +737,15 @@ fn test_set_files_sets_multiple_real_files_on_a_multiple_input() {
         path_b.to_str().expect("setup: path b must be valid UTF-8"),
     );
     let output = cli()
-        .args(["set-files", "--port", &port.to_string(), "--selector", "#file-input", "--files", &files_arg])
+        .args([
+            "set-files",
+            "--port",
+            &port.to_string(),
+            "--selector",
+            "#file-input",
+            "--files",
+            &files_arg,
+        ])
         .output()
         .expect("failed to run browse set-files");
 
@@ -583,7 +760,9 @@ fn test_set_files_sets_multiple_real_files_on_a_multiple_input() {
         path_a.file_name().unwrap().to_str().unwrap(),
         path_b.file_name().unwrap().to_str().unwrap(),
     );
-    let result = client.evaluate("document.getElementById('result').textContent").unwrap();
+    let result = client
+        .evaluate("document.getElementById('result').textContent")
+        .unwrap();
     assert_eq!(
         result, expected,
         "an <input multiple> must receive all comma-separated files, not just the first"
@@ -602,12 +781,23 @@ fn test_set_files_accepts_a_relative_path() {
         .launch()
         .expect("setup: launch must succeed");
 
-    let dir = std::env::temp_dir().join(format!("browsectl_cli_test_setfiles_relative_{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!(
+        "browsectl_cli_test_setfiles_relative_{}",
+        std::process::id()
+    ));
     std::fs::create_dir_all(&dir).expect("setup: temp dir must be creatable");
     std::fs::write(dir.join("relative.txt"), b"rel").expect("setup: fixture file must be writable");
 
     let output = cli()
-        .args(["set-files", "--port", &port.to_string(), "--selector", "#file-input", "--files", "relative.txt"])
+        .args([
+            "set-files",
+            "--port",
+            &port.to_string(),
+            "--selector",
+            "#file-input",
+            "--files",
+            "relative.txt",
+        ])
         .current_dir(&dir)
         .output()
         .expect("failed to run browse set-files");
@@ -618,7 +808,9 @@ fn test_set_files_accepts_a_relative_path() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert_eq!(
-        client.evaluate("document.getElementById('result').textContent").unwrap(),
+        client
+            .evaluate("document.getElementById('result').textContent")
+            .unwrap(),
         "relative.txt:3"
     );
 
@@ -638,14 +830,21 @@ fn test_set_files_returns_actionable_error_for_missing_file() {
     let output = cli()
         .args([
             "set-files",
-            "--port", &port.to_string(),
-            "--selector", "#file-input",
-            "--files", "this-file-does-not-exist-anywhere.tmp",
+            "--port",
+            &port.to_string(),
+            "--selector",
+            "#file-input",
+            "--files",
+            "this-file-does-not-exist-anywhere.tmp",
         ])
         .output()
         .expect("failed to run browse set-files");
 
-    assert_eq!(output.status.code(), Some(1), "a missing file must fail (exit 1), not silently no-op");
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "a missing file must fail (exit 1), not silently no-op"
+    );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         stderr.contains("this-file-does-not-exist-anywhere.tmp"),
@@ -653,7 +852,9 @@ fn test_set_files_returns_actionable_error_for_missing_file() {
         stderr
     );
     assert_eq!(
-        client.evaluate("document.getElementById('result').textContent").unwrap(),
+        client
+            .evaluate("document.getElementById('result').textContent")
+            .unwrap(),
         "none",
         "no CDP call should have been attempted, so the input must be untouched"
     );
@@ -664,14 +865,20 @@ fn test_set_files_returns_actionable_error_for_missing_file() {
 /// @covers: set-files
 #[test]
 fn test_set_files_returns_exit_2_when_files_missing() {
-    let output = cli().args(["set-files", "--port", "9222", "--selector", "#x"]).output().unwrap();
+    let output = cli()
+        .args(["set-files", "--port", "9222", "--selector", "#x"])
+        .output()
+        .unwrap();
     assert_eq!(output.status.code(), Some(2));
 }
 
 /// @covers: set-files
 #[test]
 fn test_set_files_returns_exit_2_when_selector_missing() {
-    let output = cli().args(["set-files", "--port", "9222", "--files", "a.png"]).output().unwrap();
+    let output = cli()
+        .args(["set-files", "--port", "9222", "--files", "a.png"])
+        .output()
+        .unwrap();
     assert_eq!(output.status.code(), Some(2));
 }
 
@@ -691,14 +898,28 @@ fn test_screenshot_writes_real_png_file() {
 
     let out_path = unique_temp_file("shot.png");
     let output = cli()
-        .args(["screenshot", "--port", &port.to_string(), "--output", out_path.to_str().unwrap()])
+        .args([
+            "screenshot",
+            "--port",
+            &port.to_string(),
+            "--output",
+            out_path.to_str().unwrap(),
+        ])
         .output()
         .expect("failed to run browse screenshot");
 
-    assert!(output.status.success(), "screenshot must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "screenshot must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let bytes = std::fs::read(&out_path).expect("screenshot file must exist");
-    assert_eq!(&bytes[0..8], b"\x89PNG\r\n\x1a\n", "output file must be a real PNG");
+    assert_eq!(
+        &bytes[0..8],
+        b"\x89PNG\r\n\x1a\n",
+        "output file must be a real PNG"
+    );
 
     let _ = std::fs::remove_file(&out_path);
     drop(client);
@@ -720,15 +941,28 @@ fn test_get_dom_exports_real_document_tree() {
 
     let out_path = unique_temp_file("dom.json");
     let output = cli()
-        .args(["get-dom", "--port", &port.to_string(), "--output", out_path.to_str().unwrap()])
+        .args([
+            "get-dom",
+            "--port",
+            &port.to_string(),
+            "--output",
+            out_path.to_str().unwrap(),
+        ])
         .output()
         .expect("failed to run browse get-dom");
 
-    assert!(output.status.success(), "get-dom must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "get-dom must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let raw = std::fs::read_to_string(&out_path).expect("DOM file must exist");
     let dom: serde_json::Value = serde_json::from_str(&raw).expect("DOM file must be valid JSON");
-    assert_eq!(dom["root"]["nodeName"], "#document", "must be a real CDP DOM.getDocument tree");
+    assert_eq!(
+        dom["root"]["nodeName"], "#document",
+        "must be a real CDP DOM.getDocument tree"
+    );
 
     let _ = std::fs::remove_file(&out_path);
     drop(client);
@@ -750,20 +984,34 @@ fn test_metrics_returns_real_performance_metrics() {
 
     let out_path = unique_temp_file("metrics.json");
     let output = cli()
-        .args(["metrics", "--port", &port.to_string(), "--output", out_path.to_str().unwrap()])
+        .args([
+            "metrics",
+            "--port",
+            &port.to_string(),
+            "--output",
+            out_path.to_str().unwrap(),
+        ])
         .output()
         .expect("failed to run browse metrics");
 
-    assert!(output.status.success(), "metrics must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "metrics must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let raw = std::fs::read_to_string(&out_path).expect("metrics file must exist");
-    let metrics: serde_json::Value = serde_json::from_str(&raw).expect("metrics file must be valid JSON");
+    let metrics: serde_json::Value =
+        serde_json::from_str(&raw).expect("metrics file must be valid JSON");
     let has_timestamp = metrics["metrics"]
         .as_array()
         .expect("metrics field must be an array")
         .iter()
         .any(|m| m["name"] == "Timestamp");
-    assert!(has_timestamp, "must contain a real CDP Performance.getMetrics 'Timestamp' entry");
+    assert!(
+        has_timestamp,
+        "must contain a real CDP Performance.getMetrics 'Timestamp' entry"
+    );
 
     let _ = std::fs::remove_file(&out_path);
     drop(client);
@@ -782,25 +1030,40 @@ fn test_launch_starts_real_reachable_browser_and_survives_cli_exit() {
     let output = cli()
         .args([
             "launch",
-            "--url", "data:text/html,<h1 id=y>from-launch</h1>",
-            "--port", &port.to_string(),
-            "--width", "800",
-            "--height", "600",
+            "--url",
+            "data:text/html,<h1 id=y>from-launch</h1>",
+            "--port",
+            &port.to_string(),
+            "--width",
+            "800",
+            "--height",
+            "600",
         ])
         .output()
         .expect("failed to run browse launch");
 
-    assert!(output.status.success(), "launch must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "launch must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     // The CLI process has already exited; the browser must still be reachable —
     // proving it was actually detached rather than killed with the CLI process.
-    let client = CdpClient::attach(port).expect("browser must remain reachable after the launch command exits");
+    let client = CdpClient::attach(port)
+        .expect("browser must remain reachable after the launch command exits");
     assert_eq!(
-        client.evaluate("document.getElementById('y').textContent").unwrap(),
+        client
+            .evaluate("document.getElementById('y').textContent")
+            .unwrap(),
         "from-launch"
     );
     let (width, height) = client.get_viewport_size().unwrap();
-    assert_eq!((width, height), (800, 600), "--width/--height must apply to the real viewport");
+    assert_eq!(
+        (width, height),
+        (800, 600),
+        "--width/--height must apply to the real viewport"
+    );
 
     // Clean up the detached process via CDP itself — no OS process tracking needed.
     let _ = client.send("Browser.close", serde_json::json!({}));
@@ -828,8 +1091,10 @@ fn test_stop_terminates_real_detached_launch_and_leaves_others_running() {
     let launch_output = cli()
         .args([
             "launch",
-            "--url", "data:text/html,<h1>target</h1>",
-            "--port", &target_port.to_string(),
+            "--url",
+            "data:text/html,<h1>target</h1>",
+            "--port",
+            &target_port.to_string(),
         ])
         .output()
         .expect("failed to run browse launch");
@@ -867,16 +1132,23 @@ fn test_stop_terminates_real_detached_launch_and_leaves_others_running() {
 #[test]
 fn test_stop_returns_exit_4_when_no_browser_listening() {
     let output = cli().args(["stop", "--port", "19997"]).output().unwrap();
-    assert_eq!(output.status.code(), Some(4), "unreachable debugger must exit 4 (connection failed)");
+    assert_eq!(
+        output.status.code(),
+        Some(4),
+        "unreachable debugger must exit 4 (connection failed)"
+    );
 }
-
 
 // ---------------------------------------------------------------------------
 // reap
 // ---------------------------------------------------------------------------
 
 fn unique_session_dir(name: &str) -> std::path::PathBuf {
-    std::env::temp_dir().join(format!("browsectl_cli_test_sessions_{}_{}", std::process::id(), name))
+    std::env::temp_dir().join(format!(
+        "browsectl_cli_test_sessions_{}_{}",
+        std::process::id(),
+        name
+    ))
 }
 
 /// Spawn `browse launch` via a short-lived wrapper process so the
@@ -902,7 +1174,10 @@ fn launch_with_dead_caller(port: u16, dir: &std::path::Path, url: &str) {
         // instead of staying a separate parent that then exits).
         Command::new("sh")
             .arg("-c")
-            .arg(format!("'{}' launch --url '{}' --port {} ; true", cli_path, url, port))
+            .arg(format!(
+                "'{}' launch --url '{}' --port {} ; true",
+                cli_path, url, port
+            ))
             .env("BROWSECTL_SESSION_DIR", dir)
             .output()
     }
@@ -945,7 +1220,10 @@ fn test_reap_returns_exit_2_for_unknown_option() {
 /// @covers: reap
 #[test]
 fn test_reap_returns_exit_2_for_invalid_max_age() {
-    let output = cli().args(["reap", "--max-age", "banana"]).output().unwrap();
+    let output = cli()
+        .args(["reap", "--max-age", "banana"])
+        .output()
+        .unwrap();
     assert_eq!(output.status.code(), Some(2));
 }
 
@@ -957,19 +1235,41 @@ fn test_launch_writes_a_session_record_reap_can_read() {
     let dir = unique_session_dir("launch_writes_record");
 
     let output = cli()
-        .args(["launch", "--url", "data:text/html,launch-record-test", "--port", &port.to_string()])
+        .args([
+            "launch",
+            "--url",
+            "data:text/html,launch-record-test",
+            "--port",
+            &port.to_string(),
+        ])
         .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse launch");
-    assert!(output.status.success(), "launch must exit 0, stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "launch must exit 0, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let record_path = dir.join(format!("{}.json", port));
-    let body = std::fs::read_to_string(&record_path)
-        .unwrap_or_else(|e| panic!("session record must exist at {}: {}", record_path.display(), e));
-    let record: serde_json::Value = serde_json::from_str(&body).expect("session record must be valid JSON");
+    let body = std::fs::read_to_string(&record_path).unwrap_or_else(|e| {
+        panic!(
+            "session record must exist at {}: {}",
+            record_path.display(),
+            e
+        )
+    });
+    let record: serde_json::Value =
+        serde_json::from_str(&body).expect("session record must be valid JSON");
     assert_eq!(record["port"], port);
-    assert!(record["caller_pid"].as_u64().unwrap() > 0, "caller_pid must be a plausible PID");
-    assert!(record["launched_at"].as_u64().unwrap() > 0, "launched_at must be a real timestamp");
+    assert!(
+        record["caller_pid"].as_u64().unwrap() > 0,
+        "caller_pid must be a plausible PID"
+    );
+    assert!(
+        record["launched_at"].as_u64().unwrap() > 0,
+        "launched_at must be a real timestamp"
+    );
 
     let client = CdpClient::attach(port).expect("browser must be reachable");
     let _ = client.send("Browser.close", serde_json::json!({}));
@@ -983,14 +1283,23 @@ fn test_stop_deletes_the_session_record() {
     let dir = unique_session_dir("stop_deletes_record");
 
     let launch_output = cli()
-        .args(["launch", "--url", "data:text/html,stop-record-test", "--port", &port.to_string()])
+        .args([
+            "launch",
+            "--url",
+            "data:text/html,stop-record-test",
+            "--port",
+            &port.to_string(),
+        ])
         .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse launch");
     assert!(launch_output.status.success(), "setup: launch must succeed");
 
     let record_path = dir.join(format!("{}.json", port));
-    assert!(record_path.exists(), "setup: session record must exist after launch");
+    assert!(
+        record_path.exists(),
+        "setup: session record must exist after launch"
+    );
 
     let stop_output = cli()
         .args(["stop", "--port", &port.to_string()])
@@ -1003,7 +1312,10 @@ fn test_stop_deletes_the_session_record() {
         String::from_utf8_lossy(&stop_output.stderr)
     );
 
-    assert!(!record_path.exists(), "session record must be deleted after stop");
+    assert!(
+        !record_path.exists(),
+        "session record must be deleted after stop"
+    );
 }
 
 /// @covers: reap
@@ -1016,7 +1328,13 @@ fn test_reap_leaves_alive_callers_session_untouched() {
     // This test process is `launch`'s parent for the whole test, so its
     // session must never look orphaned to `reap`.
     let launch_output = cli()
-        .args(["launch", "--url", "data:text/html,alive-caller-test", "--port", &port.to_string()])
+        .args([
+            "launch",
+            "--url",
+            "data:text/html,alive-caller-test",
+            "--port",
+            &port.to_string(),
+        ])
         .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse launch");
@@ -1033,15 +1351,20 @@ fn test_reap_leaves_alive_callers_session_untouched() {
         String::from_utf8_lossy(&reap_output.stderr)
     );
     assert!(
-        String::from_utf8_lossy(&reap_output.stdout).contains("No orphaned or stale sessions found."),
+        String::from_utf8_lossy(&reap_output.stdout)
+            .contains("No orphaned or stale sessions found."),
         "reap must not touch a session whose caller (this test process) is still alive, stdout: {}",
         String::from_utf8_lossy(&reap_output.stdout)
     );
 
     let record_path = dir.join(format!("{}.json", port));
-    assert!(record_path.exists(), "session record for a still-alive caller must not be deleted");
+    assert!(
+        record_path.exists(),
+        "session record for a still-alive caller must not be deleted"
+    );
 
-    let client = CdpClient::attach(port).expect("browser of a still-alive caller must remain reachable");
+    let client =
+        CdpClient::attach(port).expect("browser of a still-alive caller must remain reachable");
     let _ = client.send("Browser.close", serde_json::json!({}));
 }
 
@@ -1056,7 +1379,13 @@ fn test_reap_with_max_age_leaves_alive_caller_untouched_across_repeated_calls() 
     // generous --max-age must not cause an otherwise-healthy, freshly
     // launched session to be reaped just because an age limit was given.
     let launch_output = cli()
-        .args(["launch", "--url", "data:text/html,max-age-alive-test", "--port", &port.to_string()])
+        .args([
+            "launch",
+            "--url",
+            "data:text/html,max-age-alive-test",
+            "--port",
+            &port.to_string(),
+        ])
         .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse launch");
@@ -1084,10 +1413,15 @@ fn test_reap_with_max_age_leaves_alive_caller_untouched_across_repeated_calls() 
             attempt,
             String::from_utf8_lossy(&reap_output.stdout)
         );
-        assert!(record_path.exists(), "attempt {}: session record must survive", attempt);
+        assert!(
+            record_path.exists(),
+            "attempt {}: session record must survive",
+            attempt
+        );
     }
 
-    let client = CdpClient::attach(port).expect("browser of a still-alive, in-max-age caller must remain reachable");
+    let client = CdpClient::attach(port)
+        .expect("browser of a still-alive, in-max-age caller must remain reachable");
     let _ = client.send("Browser.close", serde_json::json!({}));
 }
 
@@ -1106,7 +1440,13 @@ fn test_reap_detects_pid_reuse_via_start_time_mismatch_and_reaps() {
     // launch time, as if this PID had since been handed to a different
     // process than the one `launch` originally recorded.
     let launch_output = cli()
-        .args(["launch", "--url", "data:text/html,pid-reuse-test", "--port", &port.to_string()])
+        .args([
+            "launch",
+            "--url",
+            "data:text/html,pid-reuse-test",
+            "--port",
+            &port.to_string(),
+        ])
         .env("BROWSECTL_SESSION_DIR", &dir)
         .output()
         .expect("failed to run browse launch");
@@ -1114,7 +1454,8 @@ fn test_reap_detects_pid_reuse_via_start_time_mismatch_and_reaps() {
 
     let record_path = dir.join(format!("{}.json", port));
     let body = std::fs::read_to_string(&record_path).expect("setup: session record must exist");
-    let mut record: serde_json::Value = serde_json::from_str(&body).expect("setup: record must be valid JSON");
+    let mut record: serde_json::Value =
+        serde_json::from_str(&body).expect("setup: record must be valid JSON");
     assert!(
         record["caller_start_time"].is_string(),
         "setup: launch must have captured a real fingerprint on this platform for this test to be meaningful, record: {}",
@@ -1141,7 +1482,10 @@ fn test_reap_detects_pid_reuse_via_start_time_mismatch_and_reaps() {
         stdout
     );
 
-    assert!(!record_path.exists(), "reap must delete the record once a fingerprint mismatch is detected");
+    assert!(
+        !record_path.exists(),
+        "reap must delete the record once a fingerprint mismatch is detected"
+    );
     assert!(
         CdpClient::attach(port).is_err(),
         "reap must have actually closed the browser despite caller_pid still being alive"
@@ -1167,12 +1511,23 @@ fn test_reap_dry_run_reports_orphaned_session_without_closing_it() {
         String::from_utf8_lossy(&reap_output.stderr)
     );
     let stdout = String::from_utf8_lossy(&reap_output.stdout);
-    assert!(stdout.contains(&port.to_string()), "dry-run must report the orphaned port, stdout: {}", stdout);
-    assert!(stdout.contains("Would reap"), "dry-run must not claim to have acted, stdout: {}", stdout);
+    assert!(
+        stdout.contains(&port.to_string()),
+        "dry-run must report the orphaned port, stdout: {}",
+        stdout
+    );
+    assert!(
+        stdout.contains("Would reap"),
+        "dry-run must not claim to have acted, stdout: {}",
+        stdout
+    );
 
     // Dry-run must not have touched anything.
     let record_path = dir.join(format!("{}.json", port));
-    assert!(record_path.exists(), "dry-run must not delete the session record");
+    assert!(
+        record_path.exists(),
+        "dry-run must not delete the session record"
+    );
     let client = CdpClient::attach(port).expect("dry-run must not close the orphaned browser");
     let _ = client.send("Browser.close", serde_json::json!({}));
 }
@@ -1196,11 +1551,21 @@ fn test_reap_closes_orphaned_session_and_deletes_its_record() {
         String::from_utf8_lossy(&reap_output.stderr)
     );
     let stdout = String::from_utf8_lossy(&reap_output.stdout);
-    assert!(stdout.contains("Reaped"), "reap must report what it reaped, stdout: {}", stdout);
+    assert!(
+        stdout.contains("Reaped"),
+        "reap must report what it reaped, stdout: {}",
+        stdout
+    );
 
     let record_path = dir.join(format!("{}.json", port));
-    assert!(!record_path.exists(), "reap must delete the session record after closing the browser");
-    assert!(CdpClient::attach(port).is_err(), "reap must have actually closed the orphaned browser");
+    assert!(
+        !record_path.exists(),
+        "reap must delete the session record after closing the browser"
+    );
+    assert!(
+        CdpClient::attach(port).is_err(),
+        "reap must have actually closed the orphaned browser"
+    );
 }
 
 /// @covers: launch
@@ -1216,8 +1581,10 @@ fn test_launch_reap_stale_closes_other_orphans_before_launching() {
     let launch_output = cli()
         .args([
             "launch",
-            "--url", "data:text/html,reap-stale-new-session",
-            "--port", &new_port.to_string(),
+            "--url",
+            "data:text/html,reap-stale-new-session",
+            "--port",
+            &new_port.to_string(),
             "--reap-stale",
         ])
         .env("BROWSECTL_SESSION_DIR", &dir)
@@ -1281,10 +1648,14 @@ fn spawn_mock_and_wait_ready(
     let mut child = cli()
         .args([
             "mock",
-            "--port", &port.to_string(),
-            "--url-pattern", url_pattern,
-            "--status", status,
-            "--body", body,
+            "--port",
+            &port.to_string(),
+            "--url-pattern",
+            url_pattern,
+            "--status",
+            status,
+            "--body",
+            body,
         ])
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
@@ -1314,12 +1685,8 @@ fn test_mock_fulfills_a_matching_request_with_the_fake_response() {
         .launch()
         .expect("setup: launch must succeed");
 
-    let mut mock = spawn_mock_and_wait_ready(
-        port,
-        "*mock-target.invalid*",
-        "200",
-        r#"{"faked":true}"#,
-    );
+    let mut mock =
+        spawn_mock_and_wait_ready(port, "*mock-target.invalid*", "200", r#"{"faked":true}"#);
 
     client
         .evaluate("window.runFetch('https://mock-target.invalid/api'); 'started'")
@@ -1328,7 +1695,9 @@ fn test_mock_fulfills_a_matching_request_with_the_fake_response() {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     let mut result = "pending".to_string();
     while std::time::Instant::now() < deadline {
-        result = client.evaluate("document.getElementById('result').textContent").unwrap();
+        result = client
+            .evaluate("document.getElementById('result').textContent")
+            .unwrap();
         if result != "pending" {
             break;
         }
@@ -1340,8 +1709,7 @@ fn test_mock_fulfills_a_matching_request_with_the_fake_response() {
     drop(client);
 
     assert_eq!(
-        result,
-        r#"ok:{"faked":true}"#,
+        result, r#"ok:{"faked":true}"#,
         "a request matching --url-pattern must receive the configured fake body"
     );
 }
@@ -1351,14 +1719,20 @@ fn test_mock_fulfills_a_matching_request_with_the_fake_response() {
 /// Shared by the "no added latency" comparison below, so the baseline and
 /// with-mock-active measurements are driven identically.
 fn run_fetch_and_time_it(client: &CdpClient, url: &str) -> (std::time::Duration, String) {
-    client.evaluate("document.getElementById('result').textContent = 'pending'").unwrap();
+    client
+        .evaluate("document.getElementById('result').textContent = 'pending'")
+        .unwrap();
     let started = std::time::Instant::now();
-    client.evaluate(&format!("window.runFetch('{}'); 'started'", url)).expect("triggering the fetch must not itself error");
+    client
+        .evaluate(&format!("window.runFetch('{}'); 'started'", url))
+        .expect("triggering the fetch must not itself error");
 
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     let mut result = "pending".to_string();
     while std::time::Instant::now() < deadline {
-        result = client.evaluate("document.getElementById('result').textContent").unwrap();
+        result = client
+            .evaluate("document.getElementById('result').textContent")
+            .unwrap();
         if result != "pending" {
             break;
         }
@@ -1379,19 +1753,21 @@ fn test_mock_leaves_non_matching_requests_untouched() {
 
     // Baseline: how long the same failing (nonexistent-host) fetch takes
     // with no interception active at all.
-    let (baseline_elapsed, baseline_result) = run_fetch_and_time_it(&client, "https://other-target.invalid/api");
-    assert!(baseline_result.starts_with("error:"), "setup: baseline fetch must fail with a real network error, got: {}", baseline_result);
+    let (baseline_elapsed, baseline_result) =
+        run_fetch_and_time_it(&client, "https://other-target.invalid/api");
+    assert!(
+        baseline_result.starts_with("error:"),
+        "setup: baseline fetch must fail with a real network error, got: {}",
+        baseline_result
+    );
 
     // Registers interception for a *different* pattern than the one this
     // test actually fetches from.
-    let mut mock = spawn_mock_and_wait_ready(
-        port,
-        "*mock-target.invalid*",
-        "200",
-        r#"{"faked":true}"#,
-    );
+    let mut mock =
+        spawn_mock_and_wait_ready(port, "*mock-target.invalid*", "200", r#"{"faked":true}"#);
 
-    let (with_mock_elapsed, result) = run_fetch_and_time_it(&client, "https://other-target.invalid/api");
+    let (with_mock_elapsed, result) =
+        run_fetch_and_time_it(&client, "https://other-target.invalid/api");
 
     let _ = mock.kill();
     let _ = mock.wait();
@@ -1405,7 +1781,10 @@ fn test_mock_leaves_non_matching_requests_untouched() {
         "a request NOT matching --url-pattern must reach the real network untouched, got: {}",
         result
     );
-    assert_ne!(result, r#"ok:{"faked":true}"#, "must not have received the fake body meant for a different pattern");
+    assert_ne!(
+        result, r#"ok:{"faked":true}"#,
+        "must not have received the fake body meant for a different pattern"
+    );
 
     // "No added latency/stalling": a relative comparison against this same
     // test's own baseline, not an absolute threshold — robust to whatever
@@ -1439,7 +1818,11 @@ fn test_normal_commands_are_unaffected_when_mock_is_never_invoked() {
         .args(["eval", "--port", &port.to_string(), "--script", "1 + 1"])
         .output()
         .expect("failed to run browse eval");
-    assert!(eval_output.status.success(), "eval must behave normally, stderr: {}", String::from_utf8_lossy(&eval_output.stderr));
+    assert!(
+        eval_output.status.success(),
+        "eval must behave normally, stderr: {}",
+        String::from_utf8_lossy(&eval_output.stderr)
+    );
     assert_eq!(String::from_utf8_lossy(&eval_output.stdout).trim(), "2");
 
     // A real network request must reach its real (nonexistent) destination

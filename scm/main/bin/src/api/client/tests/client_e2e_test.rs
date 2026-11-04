@@ -33,7 +33,9 @@ mod tests {
             assert_eq!(request.args, vec!["help".to_string()]);
             Ok(DispatchResponse { exit_code: 0 })
         });
-        let request = DispatchRequest { args: vec!["help".to_string()] };
+        let request = DispatchRequest {
+            args: vec!["help".to_string()],
+        };
         assert_eq!(client.dispatch(request).unwrap().exit_code, 0);
     }
 
@@ -41,7 +43,9 @@ mod tests {
     #[test]
     fn test_dispatch_propagates_the_client_error_error() {
         let client = FakeClient(|_| Err(ClientError::InvalidArgs("--url is required".to_string())));
-        let request = DispatchRequest { args: vec!["launch".to_string()] };
+        let request = DispatchRequest {
+            args: vec!["launch".to_string()],
+        };
         let err = client.dispatch(request).unwrap_err();
         assert!(matches!(err, ClientError::InvalidArgs(_)));
     }

@@ -8,7 +8,11 @@ pub fn expect_value(args: &[String], i: usize, flag: &str) -> Result<String, Cli
 }
 
 /// Parse the value following flag `args[i]` into `T`, or an `InvalidArgs` error.
-pub fn parse_value<T: std::str::FromStr>(args: &[String], i: usize, flag: &str) -> Result<T, CliError> {
+pub fn parse_value<T: std::str::FromStr>(
+    args: &[String],
+    i: usize,
+    flag: &str,
+) -> Result<T, CliError> {
     expect_value(args, i, flag)?
         .parse()
         .map_err(|_| CliError::InvalidArgs(format!("invalid value for {}", flag)))

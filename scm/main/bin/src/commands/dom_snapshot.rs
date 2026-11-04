@@ -23,7 +23,10 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
     let client = attach(port)?;
 
     let dom = client
-        .send("DOM.getDocument", serde_json::json!({ "depth": -1, "pierce": true }))
+        .send(
+            "DOM.getDocument",
+            serde_json::json!({ "depth": -1, "pierce": true }),
+        )
         .map_err(CliError::ExecutionFailed)?;
 
     let json = serde_json::to_string_pretty(&dom)
@@ -31,8 +34,9 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
 
     match output {
         Some(path) => {
-            std::fs::write(&path, &json)
-                .map_err(|e| CliError::ExecutionFailed(format!("failed to write '{}': {}", path, e)))?;
+            std::fs::write(&path, &json).map_err(|e| {
+                CliError::ExecutionFailed(format!("failed to write '{}': {}", path, e))
+            })?;
             println!("DOM exported to {}", path);
         }
         None => println!("{}", json),

@@ -57,7 +57,9 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
 
     let deadline = Instant::now() + Duration::from_secs(timeout_secs);
     loop {
-        let found = client.evaluate(&condition_js).map_err(CliError::ExecutionFailed)?;
+        let found = client
+            .evaluate(&condition_js)
+            .map_err(CliError::ExecutionFailed)?;
         if found == "true" {
             println!("Condition met.");
             return Ok(());

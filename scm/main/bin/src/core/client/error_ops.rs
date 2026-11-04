@@ -33,7 +33,10 @@ mod tests {
         assert_eq!(ClientError::ExecutionFailed("x".to_string()).exit_code(), 1);
         assert_eq!(ClientError::InvalidArgs("x".to_string()).exit_code(), 2);
         assert_eq!(ClientError::Timeout("x".to_string()).exit_code(), 3);
-        assert_eq!(ClientError::ConnectionFailed("x".to_string()).exit_code(), 4);
+        assert_eq!(
+            ClientError::ConnectionFailed("x".to_string()).exit_code(),
+            4
+        );
     }
 
     /// @covers: fmt

@@ -13,7 +13,7 @@ fn test_platform_browser_locator_attach_fails_on_no_debugger() {
 #[test]
 fn test_platform_browser_locator_launch_returns_ok_or_browser_not_found() {
     match CdpClient::launch("data:text/html,<p>probe</p>") {
-        Ok(_)  => {}
+        Ok(_) => {}
         Err(e) => assert!(!e.is_empty(), "error message must not be empty"),
     }
 }

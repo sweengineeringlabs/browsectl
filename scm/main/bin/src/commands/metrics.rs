@@ -34,8 +34,9 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
 
     match output {
         Some(path) => {
-            std::fs::write(&path, &json)
-                .map_err(|e| CliError::ExecutionFailed(format!("failed to write '{}': {}", path, e)))?;
+            std::fs::write(&path, &json).map_err(|e| {
+                CliError::ExecutionFailed(format!("failed to write '{}': {}", path, e))
+            })?;
             println!("Metrics exported to {}", path);
         }
         None => println!("{}", json),

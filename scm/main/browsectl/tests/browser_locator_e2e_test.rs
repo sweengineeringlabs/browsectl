@@ -13,7 +13,10 @@ use browsectl::CdpClient;
 fn test_browser_locator_find_locates_installed_browser() {
     let client = CdpClient::launch("data:text/html,<p>probe</p>")
         .expect("BrowserLocator::find must succeed when a browser is installed");
-    assert!(client.port() > 0, "a located browser must be reachable on a real debug port");
+    assert!(
+        client.port() > 0,
+        "a located browser must be reachable on a real debug port"
+    );
     assert!(
         client.ws_url().starts_with("ws://"),
         "a located browser must yield a real WebSocket debugger URL, got: {}",

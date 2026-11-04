@@ -39,16 +39,22 @@ impl Help {
         eprintln!("    --width <PX>          Viewport width (launch; default: 1920)");
         eprintln!("    --height <PX>         Viewport height (launch; default: 1080)");
         eprintln!("    --output <PATH>       Output format text|json|yaml (eval) or file path (screenshot, get-dom, metrics)");
-        eprintln!("    --format <FMT>        Image format: png, jpeg, webp (screenshot; default: png)");
+        eprintln!(
+            "    --format <FMT>        Image format: png, jpeg, webp (screenshot; default: png)"
+        );
         eprintln!("    --full-page           Capture beyond the viewport (screenshot)");
         eprintln!("    --timeout <SECS>      Operation timeout in seconds (wait; default: 30)");
-        eprintln!("    --headless            Accepted for compatibility; Chromium always runs headless");
+        eprintln!(
+            "    --headless            Accepted for compatibility; Chromium always runs headless"
+        );
         eprintln!("    --reap-stale          Before launching, reap other sessions whose caller has died (launch)");
         eprintln!("    --dry-run             List what reap would do without closing/deleting anything (reap)");
         eprintln!("    --max-age <DUR>       Also reap sessions older than this even if their caller is alive");
         eprintln!("                          (reap; e.g. 30, 30s, 5m, 1h)");
         eprintln!("    --url-pattern <PAT>   Glob pattern of request URLs to intercept (mock; e.g. \"*api.example.com*\")");
-        eprintln!("    --status <CODE>       Fake HTTP status code to respond with (mock; default: 200)");
+        eprintln!(
+            "    --status <CODE>       Fake HTTP status code to respond with (mock; default: 200)"
+        );
         eprintln!("    --body <TEXT>         Fake response body (mock; default: empty)\n");
         eprintln!("EXAMPLES:\n");
         eprintln!("    browse launch --url https://example.com --port 9222\n");

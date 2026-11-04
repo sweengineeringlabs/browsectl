@@ -44,7 +44,9 @@ pub fn execute(args: &[String]) -> Result<(), CliError> {
 
     let bytes = data_encoding::BASE64
         .decode(base64_data.as_bytes())
-        .map_err(|e| CliError::ExecutionFailed(format!("failed to decode screenshot data: {}", e)))?;
+        .map_err(|e| {
+            CliError::ExecutionFailed(format!("failed to decode screenshot data: {}", e))
+        })?;
 
     std::fs::write(&output, &bytes)
         .map_err(|e| CliError::ExecutionFailed(format!("failed to write '{}': {}", output, e)))?;

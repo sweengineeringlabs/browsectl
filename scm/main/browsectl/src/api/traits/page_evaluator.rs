@@ -27,7 +27,7 @@ pub trait PageEvaluator {
         );
         match self.evaluate(&js)?.as_str() {
             "__NOT_FOUND__" => Err(format!("element not found: {}", selector)),
-            other           => Ok(other.to_string()),
+            other => Ok(other.to_string()),
         }
     }
 
@@ -37,7 +37,7 @@ pub trait PageEvaluator {
     fn get_pseudo_style(
         &self,
         selector: &str,
-        pseudo:   &str,
+        pseudo: &str,
         property: &str,
     ) -> Result<String, String> {
         let js = format!(
@@ -54,7 +54,7 @@ pub trait PageEvaluator {
         );
         match self.evaluate(&js)?.as_str() {
             "__NOT_FOUND__" => Err(format!("element not found: {}", selector)),
-            other           => Ok(other.to_string()),
+            other => Ok(other.to_string()),
         }
     }
 
@@ -85,7 +85,8 @@ pub trait PageEvaluator {
 
     /// Get the current viewport dimensions as `(width, height)`.
     fn get_viewport_size(&self) -> Result<(u32, u32), String> {
-        let raw = self.evaluate("JSON.stringify({ w: window.innerWidth, h: window.innerHeight })")?;
+        let raw =
+            self.evaluate("JSON.stringify({ w: window.innerWidth, h: window.innerHeight })")?;
         let v: serde_json::Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
         Ok((
             v["w"].as_u64().unwrap_or(0) as u32,
