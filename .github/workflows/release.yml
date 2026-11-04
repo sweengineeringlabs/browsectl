@@ -1,0 +1,96 @@
+name: Release
+# On a v* tag: build the CLI natively on each supported platform, run its tests
+# and its own --version, then create a DRAFT release with SHA256SUMS and the
+# toolchain manifest justjs reads (schema in justweb-dev scm/docs/release-format.md).
+# The executable is `browse`; it is published as browsectl-<target> to match the
+# tool name in the manifest. Publishing the draft is a separate, deliberate action.
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            suffix: ''
+          - os: macos-15
+            target: aarch64-apple-darwin
+            suffix: ''
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            suffix: ''
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+            suffix: '.exe'
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: scm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - name: Tag must equal the crate version
+        shell: bash
+        run: |
+          version="$(cargo metadata --no-deps --format-version 1 | python -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "browsectl-bin"))')"
+          test "$GITHUB_REF_NAME" = "v$version"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Test
+        run: cargo test --workspace --locked
+      - name: Build
+        run: cargo build --release --locked -p browsectl-bin --target ${{ matrix.target }}
+      - name: The binary runs on this platform and reports the release version
+        shell: bash
+        run: |
+          bin="target/${{ matrix.target }}/release/browse${{ matrix.suffix }}"
+          out="$("$bin" --version)"
+          echo "$out"
+          [ "$out" = "browse $VERSION (browsectl)" ] || { echo "Expected 'browse $VERSION (browsectl)'" >&2; exit 1; }
+          mkdir -p "$GITHUB_WORKSPACE/release"
+          cp "$bin" "$GITHUB_WORKSPACE/release/browsectl-${{ matrix.target }}${{ matrix.suffix }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: browsectl-${{ matrix.target }}
+          path: release/*
+  draft:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Checksums, manifest and draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd release
+          sha256sum browsectl-* > SHA256SUMS
+          VERSION="${GITHUB_REF_NAME#v}" REVISION="$GITHUB_SHA" python3 - <<'PY'
+          import hashlib, json, os, sys
+          expected = {
+              "x86_64-unknown-linux-gnu": "browsectl-x86_64-unknown-linux-gnu",
+              "aarch64-apple-darwin": "browsectl-aarch64-apple-darwin",
+              "x86_64-apple-darwin": "browsectl-x86_64-apple-darwin",
+              "x86_64-pc-windows-msvc": "browsectl-x86_64-pc-windows-msvc.exe",
+          }
+          assets = []
+          for target, file in expected.items():
+              if not os.path.isfile(file):
+                  sys.exit(f"missing release asset for {target}: {file}")
+              digest = hashlib.sha256(open(file, "rb").read()).hexdigest()
+              assets.append({"target": target, "file": file, "sha256": digest})
+          manifest = {"schema": 1, "tool": "browsectl", "version": os.environ["VERSION"],
+                      "revision": os.environ["REVISION"], "assets": assets}
+          for name in ("toolchain-manifest.json", "browsectl-toolchain-manifest.json"):
+              open(name, "w").write(json.dumps(manifest, indent=2) + "\n")
+          PY
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "$GITHUB_REF_NAME" --generate-notes ./*

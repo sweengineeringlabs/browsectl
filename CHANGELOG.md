@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- CI (`.github/workflows/ci.yml`): `fmt`, `clippy --all-targets -D warnings` and the test suite on Linux, macOS (arm64 and x86_64) and Windows, plus a `toolchain pins` job that fails if `rust-version`, `scm/rust-toolchain.toml` and every workflow's toolchain pin differ.
+- Release workflow (`.github/workflows/release.yml`): on a `v*` tag, builds `browse` natively for `x86_64-unknown-linux-gnu`, `aarch64-apple-darwin`, `x86_64-apple-darwin` and `x86_64-pc-windows-msvc`, runs each binary's `--version` on its own platform, and creates a draft release with `SHA256SUMS` and the toolchain manifest (`tool: browsectl`, assets named `browsectl-<target>`). It refuses to produce a manifest unless all four binaries exist.
+- `scm/rust-toolchain.toml` pinning Rust 1.99.1.
+
+### Changed
+- `rust-version` is `1.99.1` (was `1.97`).
+- `cargo fmt` applied across the workspace (formatting only).
+- `clippy.toml` allows `unwrap`/`expect` in tests; production code keeps the workspace lint, so `clippy --all-targets -D warnings` is clean.
+
 ## [0.6.2] — 2026-09-04
 
 ### Documentation
