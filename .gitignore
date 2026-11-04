@@ -1,3 +1,4 @@
 target/
 scm/target/
 **/docs/7-operations/compliance/
+.work/
