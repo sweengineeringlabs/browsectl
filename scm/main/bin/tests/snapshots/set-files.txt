@@ -1,0 +1,20 @@
+browse set-files — Set files on an <input type="file"> element
+
+USAGE:
+    browse set-files --selector <SEL> --files <PATHS> [--port <PORT>]
+
+Attaches local files to a file input without opening a file dialog.
+
+OPTIONS:
+    --selector <SEL>         CSS selector of the file input (required)
+    --files <PATHS>          Comma-separated file paths (required, at least one)
+    --port <PORT>            Debug port of the session (default: 9222)
+    -h, --help               Print this help
+
+OUTPUT:
+    "Set <N> file(s) on <SEL>"
+
+EXAMPLES:
+    browse set-files --selector "#file-input" --files "./a.png,./b.pdf"
+
+EXIT CODES: 0 success, 1 action failed, 2 invalid usage, 3 timeout, 4 browser unreachable

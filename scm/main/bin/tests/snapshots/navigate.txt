@@ -1,0 +1,19 @@
+browse navigate — Navigate the running session to a URL
+
+USAGE:
+    browse navigate --url <URL> [--port <PORT>]
+
+Loads the URL in the current page. Use `browse wait --navigation` to wait for it to finish loading.
+
+OPTIONS:
+    --url <URL>              Destination (required)
+    --port <PORT>            Debug port of the session (default: 9222)
+    -h, --help               Print this help
+
+OUTPUT:
+    "Navigated to <URL>"
+
+EXAMPLES:
+    browse navigate --url https://example.com/login
+
+EXIT CODES: 0 success, 1 action failed, 2 invalid usage, 3 timeout, 4 browser unreachable

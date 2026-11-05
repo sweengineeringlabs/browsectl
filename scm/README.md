@@ -174,6 +174,12 @@ browse version
 
 `eval --output` selects the stdout format (`text`, `json`, `yaml` — default `text`). For `screenshot`/`get-dom`/`metrics`, `--output <FILE>` is a destination path; omit it on `get-dom`/`metrics` to print JSON to stdout instead. `set-files --files` is a comma-separated list of paths on disk (relative paths resolve against `browse`'s own current directory); each file is validated to exist before anything is sent to the browser, and Chromium reads the file itself over CDP (`DOM.setFileInputFiles`) — no base64 encoding, and the target `<input type="file">`'s `change` event fires natively, same as a real user picking a file.
 
+### Built-in help
+
+`browse --help` (also `-h` and `browse help`) lists every command; `browse <command> --help` (also `-h` and `browse help <command>`) gives that command's options, output, an example and the exit codes. Help you ask for goes to **stdout** and exits 0, so it can be piped to a pager. A wrong invocation (no command, unknown command or option) exits 2 and writes to **stderr**, naming the valid commands. Snapshot tests in `scm/main/bin/tests/snapshots/` fail if any help text changes without an update.
+
+Requirements: a Chromium-based browser (found automatically, or set `CHROME_PATH`) and `curl` on `PATH` (used to find the debugger URL). Launched sessions are recorded for `reap` under `$BROWSECTL_SESSION_DIR` (default: `<temp dir>/browsectl/sessions`).
+
 ### Exit codes
 
 | Code | Meaning |

@@ -1,0 +1,24 @@
+browse wait — Wait for a condition on the page
+
+USAGE:
+    browse wait (--selector <SEL> | --text <TEXT> | --navigation) [--timeout <SECS>] [--port <PORT>]
+
+Polls the page every 100 ms until the condition holds. Give one condition; if several are given, --selector wins, then --text. A selector also matches inside shadow roots.
+
+OPTIONS:
+    --selector <SEL>         Wait until an element matching this CSS selector exists
+    --text <TEXT>            Wait until the page text contains this string
+    --navigation             Wait until document.readyState is complete
+    --timeout <SECS>         Give up after this many whole seconds (default: 30)
+    --port <PORT>            Debug port of the session (default: 9222)
+    -h, --help               Print this help
+
+OUTPUT:
+    "Condition met." Exits 3 if the condition is not met within the timeout
+
+EXAMPLES:
+    browse wait --selector ".loaded" --timeout 10
+    browse wait --text "Welcome back"
+    browse wait --navigation
+
+EXIT CODES: 0 success, 1 action failed, 2 invalid usage, 3 timeout, 4 browser unreachable

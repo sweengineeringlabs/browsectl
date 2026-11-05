@@ -1,0 +1,21 @@
+browse mock — Answer matching requests with a fake response
+
+USAGE:
+    browse mock --url-pattern <PAT> [--status <CODE>] [--body <TEXT>] [--port <PORT>]
+
+Intercepts requests whose URL matches the glob and answers them with the given status and body; all other requests are untouched. Blocks until you press Ctrl-C or one hour passes without a matching request.
+
+OPTIONS:
+    --url-pattern <PAT>      Glob of request URLs to intercept, e.g. "*api.example.com*" (required)
+    --status <CODE>          HTTP status to respond with (default: 200)
+    --body <TEXT>            Response body (default: empty)
+    --port <PORT>            Debug port of the session (default: 9222)
+    -h, --help               Print this help
+
+OUTPUT:
+    A summary line, then "Mocked <URL> -> <STATUS>" for each intercepted request
+
+EXAMPLES:
+    browse mock --url-pattern "*api.example.com*" --status 200 --body '{"ok":true}'
+
+EXIT CODES: 0 success, 1 action failed, 2 invalid usage, 3 timeout, 4 browser unreachable

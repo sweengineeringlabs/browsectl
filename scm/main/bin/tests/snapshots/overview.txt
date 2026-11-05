@@ -1,0 +1,52 @@
+browse — Chromium DevTools Protocol CLI
+
+USAGE:
+    browse <COMMAND> [OPTIONS]
+    browse <COMMAND> --help
+
+COMMANDS:
+    launch       Launch a headless browser and keep it running
+    eval         Evaluate JavaScript in the running session
+    screenshot   Capture a screenshot of the page
+    navigate     Navigate the running session to a URL
+    wait         Wait for a condition on the page
+    click        Click an element
+    input        Type text into an input field
+    set-files    Set files on an <input type="file"> element
+    get-dom      Export the current DOM as JSON
+    metrics      Get browser performance metrics
+    stop         Terminate the browser session at --port
+    reap         Clean up sessions whose launcher has died or gone stale
+    mock         Answer matching requests with a fake response
+    version      Print the browse/browsectl version
+    help         Print this message, or `browse help <command>`
+
+A typical session:
+    browse launch --url https://example.com
+    browse wait --selector "h1"
+    browse eval --script "document.title"
+    browse screenshot --output page.png
+    browse stop
+
+Commands other than launch attach to a running session by --port (default 9222).
+Run `browse <command> --help` for a command's options, output and examples.
+
+OUTPUT:
+    Results go to stdout; errors (`Error: ...`) go to stderr. Only `eval` has
+    selectable formats (--output text|json|yaml); get-dom and metrics print JSON.
+
+EXIT CODES:
+    0   Success (also for --help and --version)
+    1   The command ran but the browser-side action failed (JS exception, element not found)
+    2   Invalid usage: no command, unknown command or option, missing or bad value
+    3   Timed out (wait)
+    4   Could not launch or connect to the browser
+
+REQUIREMENTS:
+    A Chromium-based browser (Chrome, Chromium, Edge or Brave), found automatically
+    or via CHROME_PATH; `curl` on PATH to find the debugger URL.
+
+ENVIRONMENT:
+    CHROME_PATH            Browser executable to use instead of searching
+    BROWSECTL_SESSION_DIR  Where launched sessions are recorded for `reap`
+                           (default: <temp dir>/browsectl/sessions)

@@ -1,0 +1,24 @@
+browse launch — Launch a headless browser and keep it running
+
+USAGE:
+    browse launch --url <URL> [--port <PORT>] [--width <PX>] [--height <PX>] [--reap-stale]
+
+Starts a headless Chromium-based browser at --url with a remote-debugging port, then returns while the browser keeps running. Later commands attach to it with the same --port. Stop it with `browse stop`. The session is recorded so `browse reap` can clean it up if this caller dies.
+
+OPTIONS:
+    --url <URL>              Page to open (required)
+    --port <PORT>            Debug port (default: 9222)
+    --width <PX>             Viewport width (default: 1920)
+    --height <PX>            Viewport height (default: 1080)
+    --reap-stale             First reap other sessions whose launching process has died
+    --headless               Accepted for compatibility; the browser always runs headless
+    -h, --help               Print this help
+
+OUTPUT:
+    "Browser launched." followed by the URL, port, viewport and DevTools WebSocket URL
+
+EXAMPLES:
+    browse launch --url https://example.com
+    browse launch --url http://localhost:5173 --port 9300 --width 1280 --height 800
+
+EXIT CODES: 0 success, 1 action failed, 2 invalid usage, 3 timeout, 4 browser unreachable

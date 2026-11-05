@@ -7,6 +7,7 @@
 First release built from the new CI and release tooling; `v0.6.2` was tagged but never released. No functional change from 0.6.2.
 
 ### Added
+- `browse --help` and a per-command `browse <command> --help` (also `browse help <command>`): options, output, an example and exit codes for every command, plus requirements (`curl`, a Chromium-based browser) and the `CHROME_PATH` and `BROWSECTL_SESSION_DIR` variables. Explicitly requested help now goes to stdout (it was stderr); a wrong invocation still exits 2 on stderr and now names the valid commands. Snapshot tests cover every help text (#26).
 - `scripts/dev/README.md`: how to build, verify and ship a release by hand, the release checklist, what `ship.sh` refuses, and recovery for a bad draft or tag.
 - `scripts/dev/build.sh`: build and verify locally with no dependency on GitHub Actions: the toolchain-pin check, `fmt`, `clippy`, tests, a release build for this machine with a `--version` assertion, and independent verification of the staged release (names, checksums, manifest).
 - `scripts/dev/ship.sh`: ship a release by hand when the release workflow cannot run. Builds and verifies locally, then creates a **draft** GitHub release; nothing is published without `--execute`, and making a draft public is a separate confirmed `--publish` step. Refuses a dirty tree, a tag that is not at `HEAD` or not on the remote, a release that already exists, a partial platform set (without `--allow-partial`) and any checksum mismatch; `--collect` merges binaries built on other machines.

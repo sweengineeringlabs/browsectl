@@ -13,7 +13,7 @@ fn cli() -> Command {
 fn test_help_lists_every_subcommand() {
     let output = cli().arg("help").output().unwrap();
     assert!(output.status.success(), "help must exit 0");
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout); // explicit help goes to stdout
     for subcommand in [
         "launch",
         "eval",
@@ -32,16 +32,16 @@ fn test_help_lists_every_subcommand() {
         "help",
     ] {
         assert!(
-            stderr.contains(subcommand),
+            stdout.contains(subcommand),
             "help output must list '{}', got:\n{}",
             subcommand,
-            stderr
+            stdout
         );
     }
     assert!(
-        !stderr.to_lowercase().contains("chromiumctl"),
+        !stdout.to_lowercase().contains("chromiumctl"),
         "help output must not reference the old project name, got:\n{}",
-        stderr
+        stdout
     );
 }
 

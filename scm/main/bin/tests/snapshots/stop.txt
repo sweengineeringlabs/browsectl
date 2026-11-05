@@ -1,0 +1,19 @@
+browse stop — Terminate the browser session at --port
+
+USAGE:
+    browse stop [--port <PORT>]
+
+Closes exactly the browser listening on --port (and its subprocesses) and forgets its recorded session.
+
+OPTIONS:
+    --port <PORT>            Debug port of the session (default: 9222)
+    -h, --help               Print this help
+
+OUTPUT:
+    "Stopped browser on port <PORT>."
+
+EXAMPLES:
+    browse stop
+    browse stop --port 9300
+
+EXIT CODES: 0 success, 1 action failed, 2 invalid usage, 3 timeout, 4 browser unreachable
