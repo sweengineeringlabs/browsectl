@@ -1,0 +1,20 @@
+browse get-dom — Export the current DOM as JSON
+
+USAGE:
+    browse get-dom [--output <PATH>] [--port <PORT>]
+
+Prints the DOM of the current page as JSON, or writes it to a file.
+
+OPTIONS:
+    --output <PATH>          Write to this file instead of stdout
+    --port <PORT>            Debug port of the session (default: 9222)
+    -h, --help               Print this help
+
+OUTPUT:
+    The JSON document on stdout, or "DOM exported to <PATH>" with --output
+
+EXAMPLES:
+    browse get-dom --output dom.json
+    browse get-dom > dom.json
+
+EXIT CODES: 0 success, 1 action failed, 2 invalid usage, 3 timeout, 4 browser unreachable

@@ -1,0 +1,20 @@
+browse reap — Clean up sessions whose launcher has died or gone stale
+
+USAGE:
+    browse reap [--dry-run] [--max-age <DURATION>]
+
+Closes recorded sessions whose launching process no longer exists. With --max-age it also closes sessions older than that even if their launcher is alive. Takes no --port: it looks at every recorded session.
+
+OPTIONS:
+    --dry-run                List what would be reaped without closing or deleting anything
+    --max-age <DURATION>     Also reap sessions older than this: seconds, or 30s, 5m, 1h
+    -h, --help               Print this help
+
+OUTPUT:
+    One line per session reaped (or "Would reap" with --dry-run) and a total, or "No orphaned or stale sessions found."
+
+EXAMPLES:
+    browse reap --dry-run
+    browse reap --max-age 1h
+
+EXIT CODES: 0 success, 1 action failed, 2 invalid usage, 3 timeout, 4 browser unreachable

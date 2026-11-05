@@ -1,0 +1,20 @@
+browse input — Type text into an input field
+
+USAGE:
+    browse input --selector <SEL> --text <TEXT> [--port <PORT>]
+
+Focuses the first element matching the selector (also inside shadow roots) and types the text.
+
+OPTIONS:
+    --selector <SEL>         CSS selector of the field (required)
+    --text <TEXT>            Text to type (required)
+    --port <PORT>            Debug port of the session (default: 9222)
+    -h, --help               Print this help
+
+OUTPUT:
+    "Typed into <SEL>"
+
+EXAMPLES:
+    browse input --selector "input#search" --text "hello"
+
+EXIT CODES: 0 success, 1 action failed, 2 invalid usage, 3 timeout, 4 browser unreachable

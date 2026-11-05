@@ -100,6 +100,17 @@ chromiumctl metrics --port 9222 \
 - `--output` flag supports: `json`, `yaml`, `text` (default: text)
 - `--verbose` / `-v` for detailed logging
 
+### Status of this RFC
+
+Implemented, with these differences from the text below (the `--help` output and `scm/README.md` are authoritative):
+
+- The tool is `browse` (crate `browsectl`), not `chromiumctl`; argument parsing is hand-written, not `clap`-based.
+- `wait --timeout` takes whole seconds (`--timeout 10`), not a duration such as `10s`.
+- `--output json|yaml|text` is implemented for `eval` only. For `screenshot`, `get-dom` and `metrics`, `--output` is a file path.
+- `--verbose` / `-v` is not implemented.
+- Added since: `set-files`, `stop`, `reap`, `mock` (RFC-0002, RFC-0003).
+- `browse --help` and `browse <command> --help` print to stdout and exit 0.
+
 ### Exit Codes
 - `0` — success
 - `1` — command execution failed

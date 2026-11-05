@@ -1,0 +1,20 @@
+browse metrics — Get browser performance metrics
+
+USAGE:
+    browse metrics [--output <PATH>] [--port <PORT>]
+
+Prints the page's performance metrics as JSON, or writes them to a file.
+
+OPTIONS:
+    --output <PATH>          Write to this file instead of stdout
+    --port <PORT>            Debug port of the session (default: 9222)
+    -h, --help               Print this help
+
+OUTPUT:
+    The JSON document on stdout, or "Metrics exported to <PATH>" with --output
+
+EXAMPLES:
+    browse metrics
+    browse metrics --output metrics.json
+
+EXIT CODES: 0 success, 1 action failed, 2 invalid usage, 3 timeout, 4 browser unreachable

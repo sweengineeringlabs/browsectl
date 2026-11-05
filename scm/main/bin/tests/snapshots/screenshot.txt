@@ -1,0 +1,22 @@
+browse screenshot — Capture a screenshot of the page
+
+USAGE:
+    browse screenshot [--port <PORT>] [--output <PATH>] [--format png|jpeg|webp] [--full-page]
+
+Saves the current page as an image file.
+
+OPTIONS:
+    --port <PORT>            Debug port of the session (default: 9222)
+    --output <PATH>          File to write (default: screenshot.png)
+    --format <FMT>           Image format: png (default), jpeg or webp
+    --full-page              Capture beyond the viewport
+    -h, --help               Print this help
+
+OUTPUT:
+    "Screenshot saved to <PATH>"
+
+EXAMPLES:
+    browse screenshot --output page.png
+    browse screenshot --port 9300 --format jpeg --full-page --output full.jpg
+
+EXIT CODES: 0 success, 1 action failed, 2 invalid usage, 3 timeout, 4 browser unreachable

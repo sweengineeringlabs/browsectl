@@ -1,0 +1,19 @@
+browse click — Click an element
+
+USAGE:
+    browse click --selector <SEL> [--port <PORT>]
+
+Clicks the centre of the first element matching the CSS selector.
+
+OPTIONS:
+    --selector <SEL>         CSS selector of the element (required)
+    --port <PORT>            Debug port of the session (default: 9222)
+    -h, --help               Print this help
+
+OUTPUT:
+    "Clicked <SEL> at (<x>, <y>)"
+
+EXAMPLES:
+    browse click --selector "button.submit"
+
+EXIT CODES: 0 success, 1 action failed, 2 invalid usage, 3 timeout, 4 browser unreachable

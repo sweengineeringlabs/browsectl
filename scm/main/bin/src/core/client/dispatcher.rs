@@ -9,12 +9,20 @@ impl Client for BrowseClient {
     fn dispatch(&self, request: DispatchRequest) -> Result<DispatchResponse, ClientError> {
         let args = &request.args;
         if args.is_empty() {
-            Help::print_help();
+            Help::print_usage_error();
             return Ok(DispatchResponse { exit_code: 2 });
         }
 
         let command = &args[0];
         let cmd_args = &args[1..];
+
+        // `browse <command> --help` / `-h` (only as the first argument, so a
+        // value such as `--text --help` is never mistaken for a request).
+        if matches!(cmd_args.first().map(String::as_str), Some("--help" | "-h"))
+            && Help::print_command_help(command)
+        {
+            return Ok(DispatchResponse { exit_code: 0 });
+        }
 
         let result = match command.as_str() {
             "launch" => commands::launch::execute(cmd_args),
@@ -31,16 +39,37 @@ impl Client for BrowseClient {
             "reap" => commands::reap::execute(cmd_args),
             "mock" => commands::mock::execute(cmd_args),
             "help" | "-h" | "--help" => {
-                Help::print_help();
-                return Ok(DispatchResponse { exit_code: 0 });
+                return match cmd_args.first() {
+                    None => {
+                        Help::print_help();
+                        Ok(DispatchResponse { exit_code: 0 })
+                    }
+                    Some(name) if Help::print_command_help(name) => {
+                        Ok(DispatchResponse { exit_code: 0 })
+                    }
+                    Some(name) => {
+                        eprintln!(
+                            "Unknown command: {}
+Valid commands: {}",
+                            name,
+                            Help::command_names().join(", ")
+                        );
+                        Ok(DispatchResponse { exit_code: 2 })
+                    }
+                };
             }
             "version" | "-V" | "--version" => {
                 Help::print_version();
                 return Ok(DispatchResponse { exit_code: 0 });
             }
             _ => {
-                eprintln!("Unknown command: {}", command);
-                Help::print_help();
+                eprintln!(
+                    "Unknown command: {}
+Valid commands: {}, version, help
+Run `browse --help` for usage.",
+                    command,
+                    Help::command_names().join(", ")
+                );
                 return Ok(DispatchResponse { exit_code: 2 });
             }
         };

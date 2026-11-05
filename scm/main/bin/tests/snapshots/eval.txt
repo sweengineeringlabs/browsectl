@@ -1,0 +1,21 @@
+browse eval — Evaluate JavaScript in the running session
+
+USAGE:
+    browse eval --script <JS> [--port <PORT>] [--output text|json|yaml]
+
+Runs the expression in the current page and prints its result.
+
+OPTIONS:
+    --script <JS>            JavaScript to evaluate (required)
+    --port <PORT>            Debug port of the session (default: 9222)
+    --output <FMT>           text (default), json or yaml; any other value prints text
+    -h, --help               Print this help
+
+OUTPUT:
+    text: the raw result. json: {"result": <value>}. yaml: result: "<value>"
+
+EXAMPLES:
+    browse eval --script "document.title"
+    browse eval --port 9300 --script "document.querySelectorAll('a').length" --output json
+
+EXIT CODES: 0 success, 1 action failed, 2 invalid usage, 3 timeout, 4 browser unreachable
