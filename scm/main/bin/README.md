@@ -3,7 +3,7 @@
 Installs the `browse` command — a CLI exposing the [`browsectl`](https://crates.io/crates/browsectl) library over the command line for shell scripts, CI, and non-Rust callers.
 
 ```sh
-cargo install browsectl-bin
+cargo install browsectl-bin    # the version on crates.io; GitHub releases may be newer
 
 browse launch --url https://example.com --port 9222
 browse eval --port 9222 --script "document.title"
@@ -11,7 +11,7 @@ browse screenshot --port 9222 --output page.png
 browse stop --port 9222
 ```
 
-Launch/attach, eval, screenshot, click, input, file-input injection, network mocking, orphaned-session cleanup. Run `browse` with no arguments for the full command reference.
+Launch/attach, eval, screenshot, click, input, file-input injection, network mocking, orphaned-session cleanup. Run `browse --help` for the command list and `browse <command> --help` for one command's options, output and exit codes.
 
 Requires a Chromium-based browser installed on the machine (set `CHROME_PATH` to override auto-discovery).
 

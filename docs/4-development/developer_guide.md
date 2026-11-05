@@ -4,9 +4,12 @@
 
 | Requirement | Version |
 |-------------|---------|
-| Rust | 1.97+ (`rustup update stable`) |
-| Browser | Chrome, Edge, or Brave (for integration tests) |
-| curl | Any recent version (used by browser-discovery code) |
+| Rust | **1.99.1**, pinned in `scm/rust-toolchain.toml` and as `rust-version` in `scm/Cargo.toml` (`rustup` selects it automatically) |
+| Browser | Chrome, Edge, Brave or Chromium, for the browser-dependent tests and for using the CLI |
+| curl | Any recent version (used by browser-discovery code to find the debugger URL) |
+
+A `toolchain pins` CI job fails if a workflow's Rust pin differs from `rust-version`, and the
+`docs` job fails if a document states a different Rust version.
 
 ## Build
 
@@ -17,25 +20,55 @@ cd scm
 cargo build
 ```
 
-No code generation, no proc-macros beyond `serde`. Cold build takes ~10 seconds.
+No code generation, no proc-macros beyond `serde`. A cold build takes about a minute or two;
+the release binary (`cargo build --release -p browsectl-bin`) is `target/release/browse`.
+
+`scripts/dev/build.sh` runs what CI runs, without GitHub Actions and in an isolated build
+directory that never waits on another cargo process's lock:
+
+```sh
+bash scripts/dev/build.sh all    # pins, fmt, clippy, tests, release build, verify
+```
+
+It builds into `.work/target` (git-ignored; `BROWSECTL_TARGET_DIR` overrides) with two parallel
+jobs (`BROWSECTL_JOBS`). Other steps: `pins`, `fmt`, `clippy`, `test`, `build`, `release`,
+`verify`. See [`scripts/dev/README.md`](../../scripts/dev/README.md). Documentation changes are
+checked with `bash scripts/dev/check-docs.sh`.
 
 ## Tests
 
 ```sh
-# Unit and offline tests (fast, no browser required)
-cargo test --lib
+# Everything that runs in CI: unit tests, the help snapshots and the offline tests
+cd scm && cargo test --workspace --locked
 
-# All integration and e2e tests (browser must be installed)
-cargo test -- --ignored --test-threads=1
+# Tests that drive a real browser (88 of them). They are #[ignore]d, do not run in CI, and need
+# a Chromium-based browser installed. One thread: they share browser ports.
+cargo test --workspace --locked -- --ignored --test-threads=1
 ```
 
-Unit tests live in `#[cfg(test)]` blocks inside source files. Integration tests use the `_e2e_test.rs` suffix and live with whichever crate owns the binary/library surface they exercise: `scm/main/browsectl/tests/` for everything that only needs the library, and `scm/main/bin/tests/cli_e2e_test.rs` for the one suite that spawns the `browse` binary (it needs `CARGO_BIN_EXE_browse`, which is only set within `browse`'s own package).
+Unit tests live in `#[cfg(test)]` blocks inside source files. Integration tests use the `_e2e_test.rs` suffix and live with whichever crate owns the binary/library surface they exercise: `scm/main/browsectl/tests/` for everything that only needs the library, and `scm/main/bin/tests/cli_e2e_test.rs` for the one suite that spawns the `browse` binary (it needs `CARGO_BIN_EXE_browse`, which is only set within `browse`'s own package). `scm/main/bin/tests/help_snapshot_test.rs` compares every `--help` text with `scm/main/bin/tests/snapshots/`.
 
 To target a specific browser:
 
 ```sh
-CHROME_PATH=/opt/chromium/chrome cargo test -- --ignored --test-threads=1
+CHROME_PATH=/opt/chromium/chrome cargo test --workspace --locked -- --ignored --test-threads=1
 ```
+
+## Continuous integration
+
+| Workflow | Job | Runs |
+|---|---|---|
+| `ci.yml` | `toolchain pins` | workflow Rust pins and `rust-toolchain.toml` equal `rust-version` |
+| `ci.yml` | `docs` | relative links resolve; Rust versions in docs equal `rust-version` |
+| `ci.yml` | `test` | fmt, clippy `-D warnings` and `cargo test --workspace` on ubuntu-24.04, macos-15, macos-15-intel and windows-2022 |
+| `release.yml` | `build`, `draft` | on a `v*` tag: test and build four platforms, create a draft release |
+
+This repository is public, so Actions run normally. A macOS job that is *cancelled* for runner
+capacity is not a failure (see the [runbook](../7-operations/runbook.md)).
+
+## Releasing
+
+Follow the [release playbook](../6-deployment/playbook.md).
 
 ## Adding a new CDP method
 
@@ -63,6 +96,8 @@ fn get_navigation_history(&self) -> Result<serde_json::Value, String> {
 |----------|--------|
 | `CHROME_PATH` | Override browser binary path used by `PlatformBrowserLocator::find()`. Must exist on disk — a nonexistent path is an error, not a fallback. |
 | `BROWSECTL_SESSION_DIR` | Override where the CLI's session records (written by `launch`, read by `stop`/`reap`) live. Defaults to `<tmp>/browsectl/sessions`. Tests use this to avoid touching a real machine's session state. |
+| `BROWSECTL_TARGET_DIR`, `BROWSECTL_JOBS`, `BROWSECTL_DIST_DIR` | Used by `scripts/dev/build.sh` and `ship.sh`: build directory (default `.work/target`), cargo parallelism (default 2), release staging directory (default `.work/dist`). |
+| `BROWSE_UPDATE_SNAPSHOTS` | When set, the help snapshot test rewrites its snapshots instead of comparing. |
 
 ## Project structure walkthrough
 
@@ -119,7 +154,7 @@ scm/
         │   ├── core/
         │   │   ├── client/      dispatcher.rs, error_ops.rs
         │   │   ├── session/     store.rs, error_ops.rs
-        │   │   ├── help.rs      Help: print_help, print_version (static usage/version text)
+        │   │   ├── help.rs      Help: the top-level and per-command help text (stdout) and usage errors (stderr)
         │   │   └── os_process.rs  ProcessLocator: caller-liveness check (tasklist/PowerShell, ps)
         │   └── commands/
         │       ├── mod.rs       Only `pub mod`/`mod`/`pub use` — no logic
@@ -128,7 +163,9 @@ scm/
         │       └── {launch,eval,...}.rs   One module per subcommand
         └── tests/               Auto-discovered by Cargo — no [[test]] entries in Cargo.toml
             ├── cli_e2e_test.rs      Every browse subcommand, end to end
-            └── help_int_test.rs     Help: print_help/print_version output, via the real CLI
+            ├── help_int_test.rs     Help: print_help/print_version output, via the real CLI
+            ├── help_snapshot_test.rs  Golden tests for every --help text
+            └── snapshots/           The expected help texts
 ```
 
 ## Commit style

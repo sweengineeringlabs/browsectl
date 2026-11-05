@@ -24,6 +24,16 @@ jobs:
           [ "$channel" = "$declared" ] || { echo "rust-toolchain.toml ($channel) differs from rust-version ($declared)" >&2; exit 1; }
           [ -n "$pins" ] || { echo "no toolchain pins found" >&2; exit 1; }
           [ "$pins" = "dtolnay/rust-toolchain@$declared" ] || { echo "workflow toolchain pins differ from rust-version $declared" >&2; exit 1; }
+  docs:
+    # Relative links in the README and docs must resolve, and every Rust version the
+    # docs state must equal `rust-version`. Needs no toolchain.
+    name: docs
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Links resolve and Rust versions equal rust-version
+        run: bash scripts/dev/check-docs.sh
+
   test:
     strategy:
       fail-fast: false
