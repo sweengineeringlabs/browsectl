@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.6.3] — 2026-11-05
+
+First release built from the new CI and release tooling; `v0.6.2` was tagged but never released. No functional change from 0.6.2.
+
 ### Added
 - `scripts/dev/build.sh`: build and verify locally with no dependency on GitHub Actions: the toolchain-pin check, `fmt`, `clippy`, tests, a release build for this machine with a `--version` assertion, and independent verification of the staged release (names, checksums, manifest).
 - `scripts/dev/ship.sh`: ship a release by hand when the release workflow cannot run. Builds and verifies locally, then creates a **draft** GitHub release; nothing is published without `--execute`, and making a draft public is a separate confirmed `--publish` step. Refuses a dirty tree, a tag that is not at `HEAD` or not on the remote, a release that already exists, a partial platform set (without `--allow-partial`) and any checksum mismatch; `--collect` merges binaries built on other machines.
