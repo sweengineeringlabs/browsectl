@@ -21,51 +21,14 @@ The `browse` CLI (package `browsectl-bin` — see [`scm/README.md`](../../scm/RE
 
 ### I/O
 
-```
-┌──────────────────────────────────────────────────────┐
-│  Rust caller                                         │
-│                                                      │
-│  IN:  URL or debug port                              │
-│       JavaScript expression strings                  │
-│       CSS selector + property name                   │
-│       Viewport width (u32)                           │
-│       Raw CDP method + serde_json::Value params      │
-│                                                      │
-│  OUT: String  (JS result, CSS value)                 │
-│       Rect    (x, y, width, height)                  │
-│       (u32, u32)  (viewport width × height)          │
-│       serde_json::Value  (raw CDP result)            │
-│       String  (error message)                        │
-└───────────────────────┬──────────────────────────────┘
-                        │
-                        ▼
-┌──────────────────────────────────────────────────────┐
-│  browsectl                                           │
-│                                                      │
-│  CdpClient::launch(url)                              │
-│    1. PlatformBrowserLocator::find()  → binary path  │
-│    2. Command::new(binary).spawn()   → Child process │
-│    3. poll /json HTTP (curl, 200 ms) → ws_url        │
-│    4. tungstenite::connect(ws_url)   → WebSocket     │
-│                                                      │
-│  .evaluate / .get_computed_style /                   │
-│  .get_bounding_rect / .set_viewport_width / .send    │
-│    serialize → JSON CDP frame → socket.send()        │
-│    socket.read() loop → match id → return result     │
-└──────────┬───────────────────────────────────────────┘
-           │  WebSocket (port 9300+)
-           ▼
-┌──────────────────────────────────────────────────────┐
-│  Chromium-based browser (headless)                   │
-│  Chrome / Edge / Brave                               │
-│                                                      │
-│  Chrome DevTools Protocol                            │
-│  Runtime.evaluate                                    │
-│  Emulation.setDeviceMetricsOverride                  │
-│  Page.navigate                                       │
-│  DOM.* (incl. setFileInputFiles)  /  Input.*         │
-│  Fetch.* (opt-in mocking)  /  Performance.*           │
-└──────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A["Rust caller<br/>IN: URL/port, JS strings, CSS selector+property,<br/>viewport width, raw CDP method+params<br/>OUT: String, Rect, (u32,u32), Value, error String"]
+    B["browsectl (CdpClient)<br/>launch(url): locate binary -&gt; spawn -&gt; poll /json -&gt; connect WebSocket<br/>evaluate/get_computed_style/...: serialize -&gt; send -&gt; read loop -&gt; match id"]
+    C["Chromium-based browser (headless)<br/>Chrome / Edge / Brave<br/>CDP: Runtime.evaluate, Emulation.setDeviceMetricsOverride,<br/>Page.navigate, DOM.*, Input.*, Fetch.*, Performance.*"]
+
+    A --> B
+    B -->|WebSocket, port 9300+| C
 ```
 
 ### Shadow DOM piercing
@@ -137,21 +100,17 @@ Plain data struct (`x`, `y`, `width`, `height`) returned by `get_bounding_rect`.
 
 ## CDP message flow
 
-```
-CdpClient::send_cdp(method, params)
-    │
-    ├─ fetch next id  (AtomicU64)
-    ├─ lock socket    (Mutex)
-    └─ send_cdp_raw(socket, id, method, params)
-            │
-            ├─ serialize → JSON { id, method, params }
-            ├─ socket.send(Text frame)
-            └─ read loop
-                    ├─ Text  → parse JSON, check id matches
-                    │          check for "error" key
-                    │          return val["result"]
-                    ├─ Ping  → send Pong, continue
-                    └─ Close → return Err
+```mermaid
+flowchart TD
+    A["CdpClient::send_cdp(method, params)"] --> B["fetch next id (AtomicU64)"]
+    A --> C["lock socket (Mutex)"]
+    A --> D["send_cdp_raw(socket, id, method, params)"]
+    D --> E["serialize -&gt; JSON { id, method, params }"]
+    D --> F["socket.send(Text frame)"]
+    D --> G["read loop"]
+    G -->|Text| H["parse JSON, check id matches,<br/>check for error key,<br/>return result field"]
+    G -->|Ping| I["send Pong, continue"]
+    G -->|Close| J["return Err"]
 ```
 
 All reads are synchronous; the loop discards events with mismatched IDs (CDP push events) until the matching response arrives.
