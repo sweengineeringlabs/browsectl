@@ -32,11 +32,16 @@ let title = client.evaluate("document.title")?;
 The `browse` CLI wraps the same library for shell scripts, CI, and non-Rust callers:
 
 ```sh
-cargo install browsectl-bin
-
 browse launch --url https://example.com --port 9222
 browse eval --port 9222 --script "document.title"
+browse --help            # every command; `browse <command> --help` for one
 ```
+
+Install a prebuilt `browse` from a [GitHub release](https://github.com/sweengineeringlabs/browsectl/releases)
+(Linux x86_64, macOS arm64 and x86_64, Windows x86_64; each release lists a checksum for every
+binary in `SHA256SUMS`), or build it: `cargo install --path scm/main/bin --locked`.
+`cargo install browsectl-bin` installs the version published on crates.io, which can be older than
+the latest GitHub release.
 
 Requires a Chromium-based browser installed on the machine (set `CHROME_PATH` to override auto-discovery).
 
@@ -45,7 +50,8 @@ Requires a Chromium-based browser installed on the machine (set `CHROME_PATH` to
 Full crate layout, the complete API surface, the CLI command reference, exit codes, and known limitations live in [`scm/README.md`](scm/README.md) — the source-code documentation, which in turn maps to:
 
 - [Architecture](docs/3-design/architecture.md) — layer diagram, CDP message flow, threading model, why "minimal"
-- [Developer guide](docs/4-development/developer_guide.md) — build, test, adding new CDP methods
+- [Developer guide](docs/4-development/developer_guide.md) — build, test, CI, adding new CDP methods
+- [Release playbook](docs/6-deployment/playbook.md) and [runbook](docs/7-operations/runbook.md) — releasing, and fixing the failures seen so far
 
 ## License
 

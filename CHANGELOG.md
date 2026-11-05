@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- `docs/6-deployment/playbook.md` (release procedure, rollback, how `justjs` consumes a release) and `docs/7-operations/runbook.md` (symptom, cause, fix and check for a missing browser, an unreachable port, usage errors, `wait` timeouts, orphaned browsers, cancelled CI jobs, the cargo lock, a full disk, CRLF scripts, the help snapshot and the consistency checks). The developer guide now states Rust 1.99.1, the test tiers, `build.sh` and the CI layout; the architecture describes the `browse` CLI; the README says how to install a release (#27).
+- `scripts/dev/check-docs.sh` and a `docs` CI job: relative links in the README and docs must resolve, and every Rust version stated must equal `rust-version`.
+
 ## [0.6.4] — 2026-11-05
 
 ### Added

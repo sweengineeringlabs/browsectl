@@ -166,6 +166,32 @@ All reads are synchronous; the loop discards events with mismatched IDs (CDP pus
 
 `wait_for_debugger` polls `http://localhost:{port}/json` via `curl` every 200 ms until a page target with a `webSocketDebuggerUrl` appears, or the 10-second deadline is reached.
 
+## The `browse` CLI
+
+The `browsectl-bin` crate builds the `browse` executable on top of the library.
+`main.rs` only collects the arguments and exits with the code it is given;
+`core/client/dispatcher.rs` routes the first argument to a module under `commands/`, one per
+subcommand, each of which parses its own options, attaches to (or launches) a browser, and
+prints its result to stdout.
+
+```
+argv --> dispatcher --> commands::<name>::execute(args)
+          |                 |-- connection::attach(--port)  --> CdpClient (default port 9222)
+          |                 `-- launch: CdpClientBuilder --> browser kept running, session recorded
+          `-- help / --help / version (core/help.rs)
+errors: CliError / ClientError --exit code--> 1 failed, 2 usage, 3 timeout, 4 connection
+```
+
+- **Exit codes** are fixed per error kind: 0 success, 1 the browser-side action failed, 2 invalid
+  usage, 3 timeout (`wait`), 4 could not launch or connect.
+- **Sessions.** `launch` leaves the browser running and writes a record (port, launch time, the
+  caller's process id and start fingerprint) under `BROWSECTL_SESSION_DIR` (default
+  `<temp dir>/browsectl/sessions`). `stop` closes one browser; `reap` closes the ones whose
+  caller has died or that exceed `--max-age` (RFC-0003).
+- **Help** is written to stdout and exits 0 when asked for (`--help`, `-h`, `browse help
+  <command>`), and to stderr with exit 2 when the invocation was wrong. Snapshot tests keep
+  every help text from changing unnoticed.
+
 ## Threading model
 
 `CdpClient` is `Send` (all fields are `Send`). Concurrent callers are serialised by the `Mutex<WebSocket>`. There is no background thread; reads happen only inside `send_cdp_raw` on the calling thread.
